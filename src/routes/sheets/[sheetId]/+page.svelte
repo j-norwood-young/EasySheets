@@ -201,8 +201,12 @@
 			{
 				onConnectedChange(nowConnected: boolean) {
 					connected = nowConnected;
-					if (nowConnected && wasConnected === false && pendingOfflineRows.length > 0) {
-						syncPendingOfflineRows();
+					if (nowConnected && wasConnected === false) {
+						if (pendingOfflineRows.length > 0) syncPendingOfflineRows();
+						else {
+							fetchRows();
+							fetchSheet();
+						}
 					}
 					wasConnected = nowConnected;
 				},
@@ -504,6 +508,7 @@
 <div>
 <div class="min-h-screen bg-zinc-50 text-zinc-900">
 	<header class="sticky top-0 z-20 border-b border-zinc-200 bg-white">
+		<OfflineBanner connected={connected} pendingCount={pendingOfflineRows.length} />
 		<div class="mx-auto max-w-6xl px-4 py-3">
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex shrink-0 items-center gap-3">
@@ -564,9 +569,6 @@
 			{/if}
 		</div>
 	</header>
-	{#if !connected}
-		<OfflineBanner connected={connected} pendingCount={pendingOfflineRows.length} />
-	{/if}
 	<main class="mx-auto max-w-6xl px-4 py-6">
 		{#if error}
 			<p class="mb-4 text-sm text-red-600" role="alert">{error}</p>

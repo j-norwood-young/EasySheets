@@ -1,4 +1,5 @@
 <script lang="ts" generics="T extends { id: string }">
+	import LinkifiedText from '$lib/components/LinkifiedText.svelte';
 	import { formatCellDisplay } from '$lib/formatCell';
 	import type { ColumnFormat } from '$lib/formatCell';
 
@@ -428,7 +429,12 @@
 									{#if col.type === 'boolean'}
 										{isBooleanTrue(getCell(row.id, col.id)) ? 'Yes' : 'No'}
 									{:else}
-										{formatCellDisplay(col.type, getCell(row.id, col.id), col.format) || '—'}
+										{@const display = formatCellDisplay(col.type, getCell(row.id, col.id), col.format)}
+										{#if display}
+											<LinkifiedText text={display} class="text-zinc-700" />
+										{:else}
+											—
+										{/if}
 									{/if}
 								</span>
 							{/if}
