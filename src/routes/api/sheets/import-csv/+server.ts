@@ -5,7 +5,18 @@ import { sheets, columns, rows, cells } from '$lib/server/db/schema';
 import { nanoid } from 'nanoid';
 import type { ColumnType } from '$lib/server/db/schema';
 import Papa from 'papaparse';
+import iconv from 'iconv-lite';
 import { broadcast } from '$lib/server/sse/channel';
+
+const REPLACEMENT_CHAR = '\uFFFD';
+
+/** Decode raw CSV bytes as UTF-8, or Windows-1252 if UTF-8 yields replacement characters. */
+function decodeCsvBytes(bytes: ArrayBuffer): string {
+	const buf = Buffer.from(bytes);
+	let s = buf.toString('utf8');
+	if (s.includes(REPLACEMENT_CHAR)) s = iconv.decode(buf, 'win1252');
+	return s;
+}
 
 function inferType(values: string[]): ColumnType {
 	let allNumber = true;
@@ -29,9 +40,17 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (contentType.includes('application/json')) {
 		const body = await request.json().catch(() => ({}));
 		raw = typeof body.csv === 'string' ? body.csv : typeof body.data === 'string' ? body.data : '';
-	} else if (contentType.includes('text/csv') || contentType.includes('multipart/form-data')) {
-		raw = await request.text();
+	} else if (contentType.includes('multipart/form-data')) {
+		const form = await request.formData();
+		let file: File | null = null;
+		for (const [, v] of form.entries()) if (v instanceof File) { file = v; break; }
+		raw = file ? decodeCsvBytes(await file.arrayBuffer()) : '';
+	} else if (contentType.includes('text/csv')) {
+		// Read raw bytes so we can decode Windows-1252 / Latin-1 (e.g. Excel exports)
+		raw = decodeCsvBytes(await request.arrayBuffer());
 	}
+	// Strip UTF-8 BOM so the first column name isn't "\uFEFFColumn"
+	if (raw.length > 0 && raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
 	if (!raw.trim()) return json({ error: 'No CSV data' }, { status: 400 });
 
 	const filename = request.headers.get('X-CSV-Filename')?.trim();

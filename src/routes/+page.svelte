@@ -49,7 +49,7 @@
 					'Content-Type': 'text/csv',
 					'X-CSV-Filename': file.name
 				},
-				body: await file.text()
+				body: await file.arrayBuffer()
 			});
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({}));
@@ -108,6 +108,7 @@
 		<div class="text-center">
 			<h2 class="text-2xl font-medium text-zinc-800 sm:text-3xl">Create a new sheet</h2>
 			<p class="mt-2 text-zinc-500">Start from scratch or upload a CSV file.</p>
+			<p class="mt-1 text-sm text-zinc-400">Use UTF-8 encoding for accents and special characters.</p>
 		</div>
 		<div class="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
 			<button
