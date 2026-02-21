@@ -65,35 +65,41 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const headers = dataRows[0];
 	const sheetId = nanoid();
-	await db.insert(sheets).values({ id: sheetId, name: sheetName });
 
-	const columnIds: string[] = [];
-	for (let i = 0; i < headers.length; i++) {
-		const name = (headers[i] ?? `Column ${i + 1}`).trim() || `Column ${i + 1}`;
-		const colId = nanoid();
-		const sampleValues = dataRows.slice(1, 6).map((row) => String(row[i] ?? '').trim());
-		const type = inferType(sampleValues);
-		await db.insert(columns).values({
-			id: colId,
-			sheetId,
-			name,
-			type,
-			order: i
-		});
-		columnIds.push(colId);
-	}
-
-	for (let r = 1; r < dataRows.length; r++) {
-		const rowId = nanoid();
-		await db.insert(rows).values({ id: rowId, sheetId, orderNum: r - 1 });
-		const cellValues = dataRows[r] ?? [];
-		await db.insert(cells).values(
-			columnIds.map((colId, i) => ({
-				rowId,
-				columnId: colId,
-				value: String(cellValues[i] ?? '').trim()
-			}))
-		);
+	try {
+		await db.insert(sheets).values({ id: sheetId, name: sheetName });
+		const columnIds: string[] = [];
+		for (let i = 0; i < headers.length; i++) {
+			const name = (headers[i] ?? `Column ${i + 1}`).trim() || `Column ${i + 1}`;
+			const colId = nanoid();
+			const sampleValues = dataRows.slice(1, 6).map((row) => String(row[i] ?? '').trim());
+			const type = inferType(sampleValues);
+			await db.insert(columns).values({
+				id: colId,
+				sheetId,
+				name,
+				type,
+				order: i
+			});
+			columnIds.push(colId);
+		}
+		for (let r = 1; r < dataRows.length; r++) {
+			const rowId = nanoid();
+			await db.insert(rows).values({ id: rowId, sheetId, orderNum: r - 1 });
+			const cellValues = dataRows[r] ?? [];
+			await db.insert(cells).values(
+				columnIds.map((colId, i) => ({
+					rowId,
+					columnId: colId,
+					value: String(cellValues[i] ?? '').trim()
+				}))
+			);
+		}
+	} catch (e) {
+		const cause = e && typeof e === 'object' && 'cause' in e ? (e as { cause?: Error }).cause : e;
+		const msg = cause instanceof Error ? cause.message : String(cause);
+		console.error('[import-csv] DB error:', msg);
+		return json({ error: 'Database error', detail: msg }, { status: 500 });
 	}
 	broadcast(sheetId);
 	return json({ id: sheetId, name: sheetName }, { status: 201 });

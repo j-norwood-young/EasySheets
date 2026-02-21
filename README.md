@@ -76,6 +76,51 @@ Output is in `build/` (or your adapter’s output directory). Preview the produc
 pnpm preview
 ```
 
+## Docker
+
+Images are published to `harbor.10layer.com/sovereignoffice/easysheets`.
+
+### Run from the registry
+
+Use the base Compose file to pull and run the image (no build):
+
+```sh
+cp .env.example .env   # optional: configure DB_PATH, etc.
+docker compose up -d
+```
+
+App is available at http://localhost:3000 (override port with `PORT`, e.g. `PORT=8080 docker compose up -d` or change in .env). Use `IMAGE_TAG` to run a specific tag:
+
+```sh
+IMAGE_TAG=0.0.1 docker compose up -d
+```
+
+### Build with Docker Compose
+
+To build the image locally and run it (e.g. for development or before pushing):
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.build.yml up --build -d
+```
+
+### Build and push to Harbor (deploy script)
+
+From the project root, build, tag, and push to Harbor:
+
+```sh
+./deploy           # tag "latest"
+./deploy 0.0.1     # specific tag
+./deploy $(git rev-parse --short HEAD)
+```
+
+Log in first: `docker login harbor.10layer.com`.
+
+### Environment
+
+- `DB_PATH` — Database path (default: `file:/data/sqlite.db`). The Compose stack mounts a volume at `/data`.
+- `PORT` — Host port to publish (default: `3000`).
+- `IMAGE_TAG` — Image tag when using `docker compose` (default: `latest`).
+
 ## Scripts
 
 | Script         | Description                          |
