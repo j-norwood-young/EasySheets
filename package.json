@@ -50,6 +50,7 @@
 	"dependencies": {
 		"@libsql/client": "^0.17.0",
 		"drizzle-orm": "^0.45.1",
+		"iconv-lite": "^0.7.2",
 		"nanoid": "^5.1.6",
 		"papaparse": "^5.5.3"
 	}

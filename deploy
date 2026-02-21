@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REGISTRY="harbor.10layer.com/sovereignoffice"
+REPOSITORY="easysheets"
+SOURCE_IMAGE="${REPOSITORY}"
+TAG="${1:-latest}"
+
+echo "Building Docker image..."
+docker build -t "${SOURCE_IMAGE}:${TAG}" .
+
+echo "Tagging for Harbor..."
+docker tag "${SOURCE_IMAGE}:${TAG}" "${REGISTRY}/${REPOSITORY}:${TAG}"
+
+echo "Pushing to ${REGISTRY}/${REPOSITORY}:${TAG}..."
+docker push "${REGISTRY}/${REPOSITORY}:${TAG}"
+
+echo "Done. Image pushed: ${REGISTRY}/${REPOSITORY}:${TAG}"
