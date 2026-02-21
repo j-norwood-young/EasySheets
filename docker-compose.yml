@@ -6,6 +6,8 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
+      # App always listens on 3000 inside the container; PORT in .env only sets the host port mapping above
+      - PORT=3000
       - DB_PATH=${DB_PATH:-file:/data/sqlite.db}
     volumes:
       - easysheets-data:/data
