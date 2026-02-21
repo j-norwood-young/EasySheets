@@ -1,0 +1,1 @@
+ALTER TABLE `columns` ADD `format` text;
