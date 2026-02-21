@@ -1,5 +1,6 @@
 services:
   app:
+    image: harbor.10layer.com/sovereignoffice/easysheets:${IMAGE_TAG:-latest}
     build: .
     env_file: .env
     ports:
