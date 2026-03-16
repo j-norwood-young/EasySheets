@@ -3,6 +3,7 @@
 	import OfflineBanner from '$lib/components/OfflineBanner.svelte';
 	import LogoLink from '$lib/components/LogoLink.svelte';
 	import PermissionIcon from '$lib/components/PermissionIcon.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 	import type { ColumnFormat } from '$lib/formatCell';
 	import { createSheetStreamConnection } from '$lib/sseConnection';
 	import { addOrUpdateSheet } from '$lib/adminSheetsStorage';
@@ -17,6 +18,8 @@
 		order?: number;
 		sheetId?: string;
 		format?: ColumnFormat | null;
+		/** Optional fixed width in pixels, shared across views. */
+		width?: number | null;
 	};
 
 	type RowRow = { id: string; sheetId: string; createdAt: Date | null; orderNum?: number };
@@ -45,7 +48,8 @@
 	$effect(() => {
 		columns = (data.columns ?? []).map((col) => ({
 			...col,
-			format: parseColumnFormat(col.format as string | ColumnFormat | null)
+			format: parseColumnFormat(col.format as string | ColumnFormat | null),
+			width: (col as ColumnRow).width ?? null
 		}));
 		rows = data.rows ?? [];
 		cells = data.cells ?? [];
@@ -86,6 +90,8 @@
 	let pendingCells = $state<{ rowId: string; columnId: string; value: string }[] | null>(null);
 	/** Row IDs selected for bulk delete (admin view). */
 	let selectedRowIds = $state<Set<string>>(new Set());
+	let deleteRowId = $state<string | null>(null);
+	let bulkDeleteOpen = $state(false);
 
 	function applyPending() {
 		if (pendingRows != null && pendingCells != null) {
@@ -145,7 +151,7 @@
 			const res = await fetch(`/api/sheets/${sheetId}`, { cache: 'no-store' });
 			if (res.ok) {
 				const json = await res.json();
-				columns = json.columns ?? [];
+				columns = (json.columns ?? []) as ColumnRow[];
 			}
 		} catch {
 			// non-critical background refresh
@@ -387,9 +393,8 @@
 		}, 300);
 	}
 
-	/** Deletes one row. When confirmFirst is true, shows a confirmation dialog (single delete). */
-	async function deleteRowById(rowId: string, confirmFirst = true) {
-		if (confirmFirst && !confirm('Delete this row?')) return;
+	/** Deletes one row after confirmation in the UI. */
+	async function deleteRowById(rowId: string) {
 		if (!connected && rowId.startsWith('offline-')) {
 			rows = rows.filter((r) => r.id !== rowId);
 			cells = cells.filter((c) => c.rowId !== rowId);
@@ -409,15 +414,27 @@
 		}
 	}
 	function onDeleteRow(rowId: string) {
-		deleteRowById(rowId, true);
+		deleteRowId = rowId;
 	}
 	async function deleteSelectedRows() {
 		const ids = Array.from(selectedRowIds);
 		const n = ids.length;
 		if (n === 0) return;
-		if (!confirm(`Delete ${n} row${n === 1 ? '' : 's'}? This cannot be undone.`)) return;
+		bulkDeleteOpen = true;
+	}
+
+	async function confirmSingleDelete() {
+		if (!deleteRowId) return;
+		const id = deleteRowId;
+		deleteRowId = null;
+		await deleteRowById(id);
+	}
+
+	async function confirmBulkDelete() {
+		const ids = Array.from(selectedRowIds);
+		bulkDeleteOpen = false;
 		for (const id of ids) {
-			await deleteRowById(id, false);
+			await deleteRowById(id);
 		}
 		selectedRowIds = new Set();
 	}
@@ -456,6 +473,31 @@
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to reorder columns';
 		}
+	}
+
+	const columnWidthSaveTimers: Record<string, ReturnType<typeof setTimeout> | null> = {};
+
+	function applyLocalColumnWidth(columnId: string, width: number) {
+		columns = columns.map((c) => (c.id === columnId ? { ...c, width } : c));
+	}
+
+	function onColumnResize(columnId: string, width: number) {
+		applyLocalColumnWidth(columnId, width);
+		if (!connected) return;
+		const existing = columnWidthSaveTimers[columnId];
+		if (existing) clearTimeout(existing);
+		columnWidthSaveTimers[columnId] = setTimeout(async () => {
+			columnWidthSaveTimers[columnId] = null;
+			try {
+				await fetch(`/api/sheets/${sheetId}/columns/${columnId}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ width })
+				});
+			} catch {
+				// ignore network errors; width will be refreshed on next successful fetch
+			}
+		}, 150);
 	}
 
 	async function openShare() {
@@ -590,6 +632,7 @@
 				onColumnEdit={openEditColumn}
 				onAddColumn={connected ? openAddColumn : undefined}
 				onColumnReorder={connected ? onColumnReorder : undefined}
+				onColumnResize={connected ? onColumnResize : undefined}
 				onEditingStart={onEditingStart}
 				onEditingEnd={onEditingEnd}
 				onRowReorder={connected ? onRowReorder : undefined}
@@ -796,4 +839,24 @@
 		</div>
 	</div>
 {/if}
+
+<Modal
+	open={deleteRowId !== null}
+	title="Delete this row?"
+	description="This action cannot be undone."
+	onClose={() => (deleteRowId = null)}
+	onPrimary={confirmSingleDelete}
+	primaryLabel="Delete row"
+	primaryVariant="danger"
+/>
+
+<Modal
+	open={bulkDeleteOpen}
+	title="Delete selected rows?"
+	description={`Delete ${selectedRowIds.size} row${selectedRowIds.size === 1 ? '' : 's'}? This cannot be undone.`}
+	onClose={() => (bulkDeleteOpen = false)}
+	onPrimary={confirmBulkDelete}
+	primaryLabel="Delete rows"
+	primaryVariant="danger"
+/>
 </div>

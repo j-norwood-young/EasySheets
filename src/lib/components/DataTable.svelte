@@ -3,12 +3,14 @@
 	import { formatCellDisplay } from '$lib/formatCell';
 	import type { ColumnFormat } from '$lib/formatCell';
 
-	interface Column {
-		id: string;
-		name: string;
-		type: string;
-		format?: ColumnFormat | null;
-	}
+interface Column {
+	id: string;
+	name: string;
+	type: string;
+	format?: ColumnFormat | null;
+	/** Optional fixed width in pixels, shared across views. */
+	width?: number | null;
+}
 	interface Cell {
 		rowId: string;
 		columnId: string;
@@ -37,6 +39,8 @@
 		onColumnReorder = undefined as ((fromIndex: number, toIndex: number) => void) | undefined,
 		selectedRowIds = undefined as Set<string> | undefined,
 		onSelectedRowIdsChange = undefined as ((ids: Set<string>) => void) | undefined,
+		onColumnResize = undefined as ((columnId: string, width: number) => void) | undefined,
+		onHeaderFilterClick = undefined as ((columnId: string) => void) | undefined,
 		permission = 'edit'
 	}: {
 		columns: Column[];
@@ -69,7 +73,12 @@
 		/** When set with onSelectedRowIdsChange, a checkbox column is shown for multi-select (e.g. bulk delete). */
 		selectedRowIds?: Set<string>;
 		onSelectedRowIdsChange?: (ids: Set<string>) => void;
+		/** Callback when user clicks the header filter icon for a column (shared view). */
+		onHeaderFilterClick?: (columnId: string) => void;
+		/** When 'edit', admin-level controls are shown (including column resize). */
 		permission?: string;
+		/** When set, admin can drag a resize handle on column headers to set fixed widths. */
+		onColumnResize?: (columnId: string, width: number) => void;
 	} = $props();
 
 	let blurTimer: ReturnType<typeof setTimeout> | null = null;
@@ -184,6 +193,54 @@
 		dragIndex = null;
 	}
 
+const MIN_COL_WIDTH = 80;
+const MAX_COL_WIDTH = 600;
+
+const headerCells = new Map<string, HTMLTableCellElement>();
+function registerHeader(node: HTMLTableCellElement, columnId: string) {
+	headerCells.set(columnId, node);
+	return {
+		destroy() {
+			headerCells.delete(columnId);
+		}
+	};
+}
+
+let resizingColumnId = $state<string | null>(null);
+let resizeStartX = 0;
+let resizeStartWidth = 0;
+
+function handleResizeMouseDown(event: MouseEvent, columnId: string) {
+	if (!onColumnResize) return;
+	event.stopPropagation();
+	event.preventDefault();
+	const header = headerCells.get(columnId);
+	if (!header) return;
+	const rect = header.getBoundingClientRect();
+	resizingColumnId = columnId;
+	resizeStartX = event.clientX;
+	resizeStartWidth = rect.width;
+	window.addEventListener('mousemove', handleResizeMouseMove);
+	window.addEventListener('mouseup', handleResizeMouseUp);
+}
+
+function handleResizeMouseMove(event: MouseEvent) {
+	if (!resizingColumnId || !onColumnResize) return;
+	const delta = event.clientX - resizeStartX;
+	let nextWidth = Math.round(resizeStartWidth + delta);
+	if (!Number.isFinite(nextWidth)) return;
+	if (nextWidth < MIN_COL_WIDTH) nextWidth = MIN_COL_WIDTH;
+	if (nextWidth > MAX_COL_WIDTH) nextWidth = MAX_COL_WIDTH;
+	onColumnResize(resizingColumnId, nextWidth);
+}
+
+function handleResizeMouseUp() {
+	if (!resizingColumnId) return;
+	resizingColumnId = null;
+	window.removeEventListener('mousemove', handleResizeMouseMove);
+	window.removeEventListener('mouseup', handleResizeMouseUp);
+}
+
 	let columnDragIndex = $state<number | null>(null);
 	let columnDragImageEl: HTMLElement | null = null;
 	function handleColumnDragStart(e: DragEvent, index: number, columnName: string) {
@@ -258,6 +315,22 @@
 	role="none"
 >
 	<table class="min-w-full divide-y divide-zinc-200 text-left text-sm">
+		<colgroup>
+			{#if showSelectionColumn}
+				<col style="width: 40px" />
+			{/if}
+			{#if onRowReorder}
+				<col style="width: 40px" />
+			{/if}
+			{#each columns as col}
+				<col style={col.width ? `width: ${col.width}px; min-width: ${col.width}px; max-width: ${col.width}px;` : ''} />
+			{/each}
+			{#if canDelete}
+				<col style="width: 48px" />
+			{:else if showAppendActions}
+				<col style="width: 96px" />
+			{/if}
+		</colgroup>
 		<thead class="bg-zinc-50">
 			<tr>
 				{#if showSelectionColumn}
@@ -286,7 +359,8 @@
 				{#each columns as col, colIndex}
 					<th
 						scope="col"
-						class="px-4 py-3 font-medium text-zinc-700 {onSortChange ? 'cursor-pointer select-none hover:bg-zinc-100' : ''}"
+						use:registerHeader={col.id}
+						class="relative px-4 py-3 font-medium text-zinc-700 {onSortChange ? 'cursor-pointer select-none hover:bg-zinc-100' : ''}"
 						role={onSortChange ? 'button' : undefined}
 						tabindex={onSortChange ? 0 : undefined}
 						onclick={() => onSortChange && handleSortClick(col.id)}
@@ -294,7 +368,7 @@
 						ondragover={onColumnReorder ? (e: DragEvent) => handleColumnDragOver(e, colIndex) : undefined}
 						ondrop={onColumnReorder ? (e: DragEvent) => handleColumnDrop(e, colIndex) : undefined}
 					>
-						<span class="flex items-center gap-1">
+						<span class="flex items-center gap-1.5">
 							{#if onColumnReorder}
 								<span
 									role="button"
@@ -312,19 +386,45 @@
 									</svg>
 								</span>
 							{/if}
-							{col.name}
+							<span class="truncate">{col.name}</span>
+							{#if onHeaderFilterClick}
+								<button
+									type="button"
+									class="flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-zinc-200"
+									aria-label={`Filter by ${col.name}`}
+									onclick={(event) => {
+										event.stopPropagation();
+										onHeaderFilterClick?.(col.id);
+									}}
+								>
+									<svg
+										class="h-3.5 w-3.5 text-zinc-400"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+									>
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M4 4h16l-6 7v5l-4 2v-7L4 4z"
+										/>
+									</svg>
+								</button>
+							{/if}
 							{#if onSortChange}
 								{#if sortColumnId === col.id}
 									<span class="text-zinc-500" aria-label={sortDirection === 'asc' ? 'Sorted ascending' : 'Sorted descending'}>
 										{#if sortDirection === 'asc'}
-											<svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5H7z"/></svg>
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5H7z"/></svg>
 										{:else}
-											<svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5H7z"/></svg>
+											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5H7z"/></svg>
 										{/if}
 									</span>
 								{:else}
-									<span class="text-zinc-300" aria-hidden="true">
-										<svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+									<span class="text-zinc-400" aria-hidden="true">
+										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
 									</span>
 								{/if}
 							{/if}
@@ -341,6 +441,15 @@
 								</button>
 							{/if}
 						</span>
+						{#if permission === 'edit' && onColumnResize}
+							<button
+								type="button"
+								class="absolute inset-y-0 right-0 w-1.5 cursor-col-resize select-none bg-transparent hover:bg-zinc-300"
+								onmousedown={(event) => handleResizeMouseDown(event, col.id)}
+								onclick={(event) => event.stopPropagation()}
+								aria-label={`Resize column ${col.name}`}
+							></button>
+						{/if}
 					</th>
 				{/each}
 				{#if canDelete}

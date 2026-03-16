@@ -32,10 +32,21 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 	if (!col) return json({ error: 'Not found' }, { status: 404 });
 
 	const body = await request.json().catch(() => ({}));
-	const updates: { name?: string; type?: ColumnType; format?: string | null } = {};
+	const updates: { name?: string; type?: ColumnType; format?: string | null; width?: number | null } = {};
 	if (typeof body.name === 'string' && body.name.trim() !== '') updates.name = body.name.trim();
 	if (body.type !== undefined) updates.type = (body.type as ColumnType) ?? 'string';
 	if (body.format !== undefined) updates.format = serializeFormat(body.format);
+	if (body.width !== undefined) {
+		const raw = Number(body.width);
+		if (Number.isFinite(raw)) {
+			const MIN_COL_WIDTH = 80;
+			const MAX_COL_WIDTH = 600;
+			let w = Math.round(raw);
+			if (w < MIN_COL_WIDTH) w = MIN_COL_WIDTH;
+			if (w > MAX_COL_WIDTH) w = MAX_COL_WIDTH;
+			updates.width = w;
+		}
+	}
 
 	if (Object.keys(updates).length === 0) return json({ ok: true });
 

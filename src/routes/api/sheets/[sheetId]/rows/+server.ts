@@ -73,21 +73,23 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 			const vb = cellMap.get(`${b.id}:${sortColumnId}`) ?? '';
 			let cmp: number;
 			if (numericTypes.includes(colType)) {
-				const na = Number(va);
-				const nb = Number(vb);
+				const na = Number(va.trim());
+				const nb = Number(vb.trim());
 				const numA = Number.isNaN(na) ? -Infinity : na;
 				const numB = Number.isNaN(nb) ? -Infinity : nb;
 				cmp = numA - numB;
 			} else if (dateTypes.includes(colType)) {
-				const da = va ? new Date(va).getTime() : -Infinity;
-				const db = vb ? new Date(vb).getTime() : -Infinity;
+				const da = va ? new Date(va.trim()).getTime() : -Infinity;
+				const db = vb ? new Date(vb.trim()).getTime() : -Infinity;
 				cmp = Number.isNaN(da) ? -1 : Number.isNaN(db) ? 1 : da - db;
 			} else if (colType === 'boolean') {
 				const ba = /^(1|true|yes)$/i.test(va.trim());
 				const bb = /^(1|true|yes)$/i.test(vb.trim());
 				cmp = (ba ? 1 : 0) - (bb ? 1 : 0);
 			} else {
-				cmp = va === vb ? 0 : va < vb ? -1 : 1;
+				const sa = va.trim().toLowerCase();
+				const sb = vb.trim().toLowerCase();
+				cmp = sa === sb ? 0 : sa < sb ? -1 : 1;
 			}
 			return sortDirection === 'desc' ? -cmp : cmp;
 		});

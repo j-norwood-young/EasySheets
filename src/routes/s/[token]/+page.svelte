@@ -2,6 +2,7 @@
 	import DataTable from '$lib/components/DataTable.svelte';
 	import SheetToolbar from '$lib/components/SheetToolbar.svelte';
 	import OfflineBanner from '$lib/components/OfflineBanner.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 	import LogoLink from '$lib/components/LogoLink.svelte';
 	import PermissionIcon from '$lib/components/PermissionIcon.svelte';
 	import { createSheetStreamConnection } from '$lib/sseConnection';
@@ -14,24 +15,88 @@
 	const sheetId = $derived(data.sheetId);
 	const permission = $derived(data.permission);
 
-	let columns = $state<{ id: string; name: string; type: string; format?: import('$lib/formatCell').ColumnFormat | null }[]>([]);
+let columns = $state<{ id: string; name: string; type: string; format?: import('$lib/formatCell').ColumnFormat | null; width?: number | null }[]>([]);
 	let rows = $state<{ id: string; sheetId: string; createdAt: Date | null }[]>([]);
 	let cells = $state<{ rowId: string; columnId: string; value: string }[]>([]);
 	let loading = $state(true);
 	let sortColumnId = $state('');
 	let sortDirection = $state<'asc' | 'desc'>('asc');
 	let filters = $state<Record<string, string>>({});
+	let headerFilterColumnId = $state<string | null>(null);
 	let error = $state<string | null>(null);
 	let initialLoadDone = $state(false);
+	let sortInitialized = $state(false);
 
 	/** SSE connection state; when false, editing is disabled and add-row is offline-only. */
 	let connected = $state(true);
 	/** Rows added while offline; synced when we reconnect. */
 	let pendingOfflineRows = $state<{ tempId: string; cells: Record<string, string> }[]>([]);
+	let deleteRowId = $state<string | null>(null);
+
+	function getSortStorageKey() {
+		if (!sheetId) return null;
+		return `sheet-sort:${sheetId}:${permission}`;
+	}
+
+	function loadSortFromStorage(): { columnId: string; direction: 'asc' | 'desc' } | null {
+		if (typeof window === 'undefined') return null;
+		const key = getSortStorageKey();
+		if (!key) return null;
+		try {
+			const raw = window.localStorage.getItem(key);
+			if (!raw) return null;
+			const parsed = JSON.parse(raw) as { columnId?: string; direction?: string };
+			if (
+				typeof parsed.columnId === 'string' &&
+				(parsed.direction === 'asc' || parsed.direction === 'desc')
+			) {
+				return { columnId: parsed.columnId, direction: parsed.direction };
+			}
+		} catch {
+			// ignore malformed data
+		}
+		return null;
+	}
+
+	function saveSortToStorage(columnId: string, direction: 'asc' | 'desc') {
+		if (typeof window === 'undefined') return;
+		const key = getSortStorageKey();
+		if (!key) return;
+		try {
+			if (!columnId) {
+				window.localStorage.removeItem(key);
+			} else {
+				window.localStorage.setItem(
+					key,
+					JSON.stringify({ columnId, direction })
+				);
+			}
+		} catch {
+			// best-effort only
+		}
+	}
 
 	$effect(() => {
-		sortColumnId = data.sort ?? '';
-		sortDirection = (data.dir ?? 'asc') as 'asc' | 'desc';
+		const urlSortColumn = data.sort ?? '';
+		const urlSortDirection = (data.dir ?? 'asc') as 'asc' | 'desc';
+
+		if (!sortInitialized) {
+			if (urlSortColumn) {
+				sortColumnId = urlSortColumn;
+				sortDirection = urlSortDirection;
+			} else {
+				const stored = loadSortFromStorage();
+				if (stored) {
+					sortColumnId = stored.columnId;
+					sortDirection = stored.direction;
+				} else {
+					sortColumnId = '';
+					sortDirection = 'asc';
+				}
+			}
+			sortInitialized = true;
+		}
+
 		filters = data.filters ?? {};
 	});
 	let adding = $state(false);
@@ -302,9 +367,15 @@
 		}, 300);
 	}
 
-	async function onDeleteRow(rowId: string) {
+	function requestDeleteRow(rowId: string) {
 		if (!canDelete && !(canAppend && (sessionAddedRowIds.has(rowId) || rowId.startsWith('offline-')))) return;
-		if (!confirm('Delete this row?')) return;
+		deleteRowId = rowId;
+	}
+
+	async function confirmDeleteRow() {
+		if (!deleteRowId) return;
+		const rowId = deleteRowId;
+		deleteRowId = null;
 		if (!connected && rowId.startsWith('offline-')) {
 			rows = rows.filter((r) => r.id !== rowId);
 			cells = cells.filter((c) => c.rowId !== rowId);
@@ -342,6 +413,10 @@
 				<SheetToolbar
 					columns={columns}
 					bind:filters
+					openForColumnId={headerFilterColumnId ?? ''}
+					onFilterModalClosed={() => {
+						headerFilterColumnId = null;
+					}}
 					inHeader={true}
 				/>
 				{#if canAppend}
@@ -373,18 +448,32 @@
 				onSortChange={(colId, dir) => {
 					sortColumnId = colId;
 					sortDirection = dir;
+					saveSortToStorage(colId, dir);
 				}}
 				editable={canEdit ? connected : (canAppend && !connected && pendingOfflineRows.length > 0)}
 				editableRowIds={editableRowIds}
 				editingRowIds={editableRowIds != null ? (connected ? editingRowIds : new Set(pendingOfflineRows.map((p) => p.tempId))) : undefined}
 				onCellChange={onCellChange}
-				onDeleteRow={canEdit || canAppend ? onDeleteRow : undefined}
+				onDeleteRow={canEdit || canAppend ? requestDeleteRow : undefined}
 				onStartEdit={canAppend && !canEdit ? onStartEdit : undefined}
 				onConfirmEdit={canAppend && !canEdit ? onConfirmEdit : undefined}
 				onEditingStart={onEditingStart}
 				onEditingEnd={onEditingEnd}
+				onHeaderFilterClick={(columnId) => {
+					headerFilterColumnId = columnId;
+				}}
 				permission={permission}
 			/>
 		{/if}
 	</main>
+
+	<Modal
+		open={deleteRowId !== null}
+		title="Delete this row?"
+		description="This action cannot be undone."
+		onClose={() => (deleteRowId = null)}
+		onPrimary={confirmDeleteRow}
+		primaryLabel="Delete row"
+		primaryVariant="danger"
+	/>
 </div>

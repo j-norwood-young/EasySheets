@@ -40,11 +40,12 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		name,
 		type: type as ColumnType,
 		order,
-		format: formatJson
+		format: formatJson,
+		width: null
 	});
 	broadcast(sheetId);
 	const format = formatJson ? (JSON.parse(formatJson) as ColumnFormat) : null;
-	return json({ id, name, type, order, format }, { status: 201 });
+	return json({ id, name, type, order, format, width: null }, { status: 201 });
 };
 
 export const PATCH: RequestHandler = async ({ params, request }) => {

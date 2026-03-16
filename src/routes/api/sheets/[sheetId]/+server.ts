@@ -28,7 +28,8 @@ export const GET: RequestHandler = async ({ params, request }) => {
 		name: c.name,
 		type: c.type,
 		order: c.order,
-		format: parseColumnFormat(c.format)
+		format: parseColumnFormat(c.format),
+		width: c.width ?? null
 	}));
 
 	return json({

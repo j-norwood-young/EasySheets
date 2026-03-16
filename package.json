@@ -1,7 +1,7 @@
 {
 	"name": "easysheets",
 	"private": true,
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -15,7 +15,7 @@
 		"test:e2e": "playwright test",
 		"test": "npm run test:e2e",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate",
+		"db:migrate": "node scripts/migrate.js",
 		"db:push": "drizzle-kit push"
 	},
 	"devDependencies": {

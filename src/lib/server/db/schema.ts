@@ -41,6 +41,8 @@ export const columns = sqliteTable('columns', {
 	order: integer('order').notNull().default(0),
 	/** JSON: { currencySymbol?, decimalPlaces?, thousandsSeparator? } */
 	format: text('format'),
+	/** Optional fixed width in pixels for this column in the table UI. */
+	width: integer('width'),
 });
 
 export const rows = sqliteTable('rows', {
