@@ -8,7 +8,6 @@
 	import { createSheetStreamConnection } from '$lib/sseConnection';
 	import { page } from '$app/state';
 	import { onMount, tick } from 'svelte';
-	import { replaceState } from '$app/navigation';
 
 	let { data } = $props();
 	const token = $derived(page.params.token ?? '');
@@ -148,6 +147,7 @@ let columns = $state<{ id: string; name: string; type: string; format?: import('
 	}
 
 	function syncUrl() {
+		if (typeof window === 'undefined') return;
 		const u = new URL(page.url);
 		if (sortColumnId) {
 			u.searchParams.set('sort', sortColumnId);
@@ -161,8 +161,13 @@ let columns = $state<{ id: string; name: string; type: string; format?: import('
 			if (k.startsWith('filter_') && !filters[k.slice(7)]) u.searchParams.delete(k);
 		}
 		const target = u.pathname + (u.searchParams.toString() ? '?' + u.searchParams.toString() : '');
-		if (target !== page.url.pathname + (page.url.search || '')) {
-			replaceState(target, {});
+		const current = window.location.pathname + window.location.search;
+		if (target !== current) {
+			try {
+				window.history.replaceState(window.history.state, '', target);
+			} catch {
+				// ignore history errors (e.g. disabled, out of quota)
+			}
 		}
 	}
 
