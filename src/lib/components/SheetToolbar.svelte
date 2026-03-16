@@ -7,7 +7,8 @@
 
 	let {
 		columns = [],
-		filters = $bindable<Record<string, string>>({}),
+		filters = {} as Record<string, string>,
+		onFiltersChange = undefined as ((next: Record<string, string>) => void) | undefined,
 		onApplyFilter = (_columnId: string, _op: string, _value: string) => {},
 		inHeader = false,
 		openForColumnId = '',
@@ -15,6 +16,7 @@
 	}: {
 		columns: Column[];
 		filters?: Record<string, string>;
+		onFiltersChange?: (next: Record<string, string>) => void;
 		onApplyFilter?: (columnId: string, op: string, value: string) => void;
 		inHeader?: boolean;
 		/** When set to a column ID, the filter modal opens with that column preselected. */
@@ -50,7 +52,9 @@
 		let val = filterValue;
 		if (filterCaseSensitive && !isNumber && !isDate) val = `case:${val}`;
 		onApplyFilter(filterColId, op, val);
-		filters = { ...filters, [filterColId]: `${op}:${val}` };
+		const next = { ...filters, [filterColId]: `${op}:${val}` };
+		filters = next;
+		onFiltersChange?.(next);
 		filterOpen = false;
 		onFilterModalClosed?.();
 		filterValue = '';
@@ -59,6 +63,7 @@
 		const next = { ...filters };
 		delete next[columnId];
 		filters = next;
+		onFiltersChange?.(next);
 	}
 </script>
 

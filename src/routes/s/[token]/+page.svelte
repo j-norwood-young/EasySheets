@@ -412,7 +412,10 @@ let columns = $state<{ id: string; name: string; type: string; format?: import('
 			<div class="flex flex-wrap items-center gap-2">
 				<SheetToolbar
 					columns={columns}
-					bind:filters
+					filters={filters}
+					onFiltersChange={(next) => {
+						filters = next ?? {};
+					}}
 					openForColumnId={headerFilterColumnId ?? ''}
 					onFilterModalClosed={() => {
 						headerFilterColumnId = null;
