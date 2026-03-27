@@ -3,14 +3,14 @@
 	import { formatCellDisplay } from '$lib/formatCell';
 	import type { ColumnFormat } from '$lib/formatCell';
 
-interface Column {
-	id: string;
-	name: string;
-	type: string;
-	format?: ColumnFormat | null;
-	/** Optional fixed width in pixels, shared across views. */
-	width?: number | null;
-}
+	interface Column {
+		id: string;
+		name: string;
+		type: string;
+		format?: ColumnFormat | null;
+		/** Optional fixed width in pixels, shared across views. */
+		width?: number | null;
+	}
 	interface Cell {
 		rowId: string;
 		columnId: string;
@@ -83,7 +83,10 @@ interface Column {
 
 	let blurTimer: ReturnType<typeof setTimeout> | null = null;
 	function handleTableFocusIn() {
-		if (blurTimer) { clearTimeout(blurTimer); blurTimer = null; }
+		if (blurTimer) {
+			clearTimeout(blurTimer);
+			blurTimer = null;
+		}
 		onEditingStart?.();
 	}
 	function handleTableFocusOut() {
@@ -94,9 +97,7 @@ interface Column {
 		}, 150);
 	}
 
-	const cellMap = $derived(
-		new Map(cells.map((c) => [`${c.rowId}:${c.columnId}`, c.value]))
-	);
+	const cellMap = $derived(new Map(cells.map((c) => [`${c.rowId}:${c.columnId}`, c.value])));
 	function getCell(rowId: string, columnId: string): string {
 		return cellMap.get(`${rowId}:${columnId}`) ?? '';
 	}
@@ -193,53 +194,53 @@ interface Column {
 		dragIndex = null;
 	}
 
-const MIN_COL_WIDTH = 80;
-const MAX_COL_WIDTH = 600;
+	const MIN_COL_WIDTH = 80;
+	const MAX_COL_WIDTH = 600;
 
-const headerCells = new Map<string, HTMLTableCellElement>();
-function registerHeader(node: HTMLTableCellElement, columnId: string) {
-	headerCells.set(columnId, node);
-	return {
-		destroy() {
-			headerCells.delete(columnId);
-		}
-	};
-}
+	const headerCells = new Map<string, HTMLTableCellElement>();
+	function registerHeader(node: HTMLTableCellElement, columnId: string) {
+		headerCells.set(columnId, node);
+		return {
+			destroy() {
+				headerCells.delete(columnId);
+			}
+		};
+	}
 
-let resizingColumnId = $state<string | null>(null);
-let resizeStartX = 0;
-let resizeStartWidth = 0;
+	let resizingColumnId = $state<string | null>(null);
+	let resizeStartX = 0;
+	let resizeStartWidth = 0;
 
-function handleResizeMouseDown(event: MouseEvent, columnId: string) {
-	if (!onColumnResize) return;
-	event.stopPropagation();
-	event.preventDefault();
-	const header = headerCells.get(columnId);
-	if (!header) return;
-	const rect = header.getBoundingClientRect();
-	resizingColumnId = columnId;
-	resizeStartX = event.clientX;
-	resizeStartWidth = rect.width;
-	window.addEventListener('mousemove', handleResizeMouseMove);
-	window.addEventListener('mouseup', handleResizeMouseUp);
-}
+	function handleResizeMouseDown(event: MouseEvent, columnId: string) {
+		if (!onColumnResize) return;
+		event.stopPropagation();
+		event.preventDefault();
+		const header = headerCells.get(columnId);
+		if (!header) return;
+		const rect = header.getBoundingClientRect();
+		resizingColumnId = columnId;
+		resizeStartX = event.clientX;
+		resizeStartWidth = rect.width;
+		window.addEventListener('mousemove', handleResizeMouseMove);
+		window.addEventListener('mouseup', handleResizeMouseUp);
+	}
 
-function handleResizeMouseMove(event: MouseEvent) {
-	if (!resizingColumnId || !onColumnResize) return;
-	const delta = event.clientX - resizeStartX;
-	let nextWidth = Math.round(resizeStartWidth + delta);
-	if (!Number.isFinite(nextWidth)) return;
-	if (nextWidth < MIN_COL_WIDTH) nextWidth = MIN_COL_WIDTH;
-	if (nextWidth > MAX_COL_WIDTH) nextWidth = MAX_COL_WIDTH;
-	onColumnResize(resizingColumnId, nextWidth);
-}
+	function handleResizeMouseMove(event: MouseEvent) {
+		if (!resizingColumnId || !onColumnResize) return;
+		const delta = event.clientX - resizeStartX;
+		let nextWidth = Math.round(resizeStartWidth + delta);
+		if (!Number.isFinite(nextWidth)) return;
+		if (nextWidth < MIN_COL_WIDTH) nextWidth = MIN_COL_WIDTH;
+		if (nextWidth > MAX_COL_WIDTH) nextWidth = MAX_COL_WIDTH;
+		onColumnResize(resizingColumnId, nextWidth);
+	}
 
-function handleResizeMouseUp() {
-	if (!resizingColumnId) return;
-	resizingColumnId = null;
-	window.removeEventListener('mousemove', handleResizeMouseMove);
-	window.removeEventListener('mouseup', handleResizeMouseUp);
-}
+	function handleResizeMouseUp() {
+		if (!resizingColumnId) return;
+		resizingColumnId = null;
+		window.removeEventListener('mousemove', handleResizeMouseMove);
+		window.removeEventListener('mouseup', handleResizeMouseUp);
+	}
 
 	let columnDragIndex = $state<number | null>(null);
 	let columnDragImageEl: HTMLElement | null = null;
@@ -294,7 +295,11 @@ function handleResizeMouseUp() {
 
 	function setIndeterminate(node: HTMLInputElement, value: boolean) {
 		node.indeterminate = value;
-		return { update(value: boolean) { node.indeterminate = value; } };
+		return {
+			update(value: boolean) {
+				node.indeterminate = value;
+			}
+		};
 	}
 	function handleSortClick(colId: string) {
 		if (!onSortChange) return;
@@ -323,7 +328,11 @@ function handleResizeMouseUp() {
 				<col style="width: 40px" />
 			{/if}
 			{#each columns as col}
-				<col style={col.width ? `width: ${col.width}px; min-width: ${col.width}px; max-width: ${col.width}px;` : ''} />
+				<col
+					style={col.width
+						? `width: ${col.width}px; min-width: ${col.width}px; max-width: ${col.width}px;`
+						: ''}
+				/>
 			{/each}
 			{#if canDelete}
 				<col style="width: 48px" />
@@ -360,12 +369,19 @@ function handleResizeMouseUp() {
 					<th
 						scope="col"
 						use:registerHeader={col.id}
-						class="relative px-4 py-3 font-medium text-zinc-700 {onSortChange ? 'cursor-pointer select-none hover:bg-zinc-100' : ''}"
+						class="relative px-4 py-3 font-medium text-zinc-700 {onSortChange
+							? 'cursor-pointer select-none hover:bg-zinc-100'
+							: ''}"
 						role={onSortChange ? 'button' : undefined}
 						tabindex={onSortChange ? 0 : undefined}
 						onclick={() => onSortChange && handleSortClick(col.id)}
-						onkeydown={(e) => onSortChange && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), handleSortClick(col.id))}
-						ondragover={onColumnReorder ? (e: DragEvent) => handleColumnDragOver(e, colIndex) : undefined}
+						onkeydown={(e) =>
+							onSortChange &&
+							(e.key === 'Enter' || e.key === ' ') &&
+							(e.preventDefault(), handleSortClick(col.id))}
+						ondragover={onColumnReorder
+							? (e: DragEvent) => handleColumnDragOver(e, colIndex)
+							: undefined}
 						ondrop={onColumnReorder ? (e: DragEvent) => handleColumnDrop(e, colIndex) : undefined}
 					>
 						<span class="flex items-center gap-1.5">
@@ -377,12 +393,25 @@ function handleResizeMouseUp() {
 									aria-label="Drag to reorder column"
 									draggable="true"
 									onclick={(e) => e.stopPropagation()}
-									onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Enter' || e.key === ' ') e.preventDefault(); }}
-									ondragstart={(e: DragEvent) => { e.stopPropagation(); handleColumnDragStart(e, colIndex, col.name); }}
+									onkeydown={(e) => {
+										e.stopPropagation();
+										if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+									}}
+									ondragstart={(e: DragEvent) => {
+										e.stopPropagation();
+										handleColumnDragStart(e, colIndex, col.name);
+									}}
 									ondragend={handleColumnDragEnd}
 								>
-									<svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-										<path d="M8 6h2v2H8V6zm0 5h2v2H8v-2zm0 5h2v2H8v-2zm5-10h2v2h-2V6zm0 5h2v2h-2v-2zm0 5h2v2h-2v-2z" />
+									<svg
+										class="h-3.5 w-3.5"
+										fill="currentColor"
+										viewBox="0 0 24 24"
+										aria-hidden="true"
+									>
+										<path
+											d="M8 6h2v2H8V6zm0 5h2v2H8v-2zm0 5h2v2H8v-2zm5-10h2v2h-2V6zm0 5h2v2h-2v-2zm0 5h2v2h-2v-2z"
+										/>
 									</svg>
 								</span>
 							{/if}
@@ -415,16 +444,31 @@ function handleResizeMouseUp() {
 							{/if}
 							{#if onSortChange}
 								{#if sortColumnId === col.id}
-									<span class="text-zinc-500" aria-label={sortDirection === 'asc' ? 'Sorted ascending' : 'Sorted descending'}>
+									<span
+										class="text-zinc-500"
+										aria-label={sortDirection === 'asc' ? 'Sorted ascending' : 'Sorted descending'}
+									>
 										{#if sortDirection === 'asc'}
-											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5H7z"/></svg>
+											<svg
+												class="h-4 w-4"
+												fill="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"><path d="M7 10l5 5 5-5H7z" /></svg
+											>
 										{:else}
-											<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14l5-5 5 5H7z"/></svg>
+											<svg
+												class="h-4 w-4"
+												fill="currentColor"
+												viewBox="0 0 24 24"
+												aria-hidden="true"><path d="M7 14l5-5 5 5H7z" /></svg
+											>
 										{/if}
 									</span>
 								{:else}
 									<span class="text-zinc-400" aria-hidden="true">
-										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+										<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"
+											><path d="M7 10l5 5 5-5H7z" /></svg
+										>
 									</span>
 								{/if}
 							{/if}
@@ -432,11 +476,19 @@ function handleResizeMouseUp() {
 								<button
 									type="button"
 									aria-label="Edit column"
-									onclick={(e) => { e.stopPropagation(); onColumnEdit(col); }}
+									onclick={(e) => {
+										e.stopPropagation();
+										onColumnEdit(col);
+									}}
 									class="rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
 								>
 									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+										/>
 									</svg>
 								</button>
 							{/if}
@@ -444,7 +496,7 @@ function handleResizeMouseUp() {
 						{#if permission === 'edit' && onColumnResize}
 							<button
 								type="button"
-								class="absolute inset-y-0 right-0 w-1.5 cursor-col-resize select-none bg-transparent hover:bg-zinc-300"
+								class="absolute inset-y-0 right-0 w-1.5 cursor-col-resize bg-transparent select-none hover:bg-zinc-300"
 								onmousedown={(event) => handleResizeMouseDown(event, col.id)}
 								onclick={(event) => event.stopPropagation()}
 								aria-label={`Resize column ${col.name}`}
@@ -462,7 +514,12 @@ function handleResizeMouseUp() {
 								class="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
 							>
 								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M12 4v16m8-8H4"
+									/>
 								</svg>
 							</button>
 						{/if}
@@ -503,14 +560,18 @@ function handleResizeMouseUp() {
 						</td>
 					{/if}
 					{#if onRowReorder}
-						<td class="w-10 cursor-grab px-2 py-2 text-zinc-400 active:cursor-grabbing">
+						<td
+							class="w-10 cursor-grab border-y-0 border-r-1 border-l-0 border-zinc-200 px-2 py-0 text-zinc-400 focus:border-zinc-400 active:cursor-grabbing"
+						>
 							<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-								<path d="M8 6h2v2H8V6zm0 5h2v2H8v-2zm0 5h2v2H8v-2zm5-10h2v2h-2V6zm0 5h2v2h-2v-2zm0 5h2v2h-2v-2z" />
+								<path
+									d="M8 6h2v2H8V6zm0 5h2v2H8v-2zm0 5h2v2H8v-2zm5-10h2v2h-2V6zm0 5h2v2h-2v-2zm0 5h2v2h-2v-2z"
+								/>
 							</svg>
 						</td>
 					{/if}
 					{#each columns as col}
-						<td class="px-4 py-2">
+						<td>
 							{#if isRowEditable(row.id)}
 								{#if col.type === 'boolean'}
 									<label class="flex cursor-pointer items-center gap-2">
@@ -518,7 +579,11 @@ function handleResizeMouseUp() {
 											type="checkbox"
 											checked={isBooleanTrue(getCell(row.id, col.id))}
 											onchange={(e) =>
-												onCellChange(row.id, col.id, (e.target as HTMLInputElement).checked ? 'true' : 'false')}
+												onCellChange(
+													row.id,
+													col.id,
+													(e.target as HTMLInputElement).checked ? 'true' : 'false'
+												)}
 											class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
 										/>
 									</label>
@@ -530,7 +595,7 @@ function handleResizeMouseUp() {
 										value={getInputValue(col, row.id)}
 										oninput={(e) =>
 											onCellChange(row.id, col.id, (e.target as HTMLInputElement).value)}
-										class="w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-zinc-900 focus:border-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+										class="w-full border-y-0 border-r-1 border-l-0 border-zinc-200 bg-white px-2 py-2.5 text-zinc-900 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 focus:outline-none"
 									/>
 								{/if}
 							{:else}
@@ -538,7 +603,11 @@ function handleResizeMouseUp() {
 									{#if col.type === 'boolean'}
 										{isBooleanTrue(getCell(row.id, col.id)) ? 'Yes' : 'No'}
 									{:else}
-										{@const display = formatCellDisplay(col.type, getCell(row.id, col.id), col.format)}
+										{@const display = formatCellDisplay(
+											col.type,
+											getCell(row.id, col.id),
+											col.format
+										)}
 										{#if display}
 											<LinkifiedText text={display} class="text-zinc-700" />
 										{:else}
@@ -578,7 +647,12 @@ function handleResizeMouseUp() {
 										class="rounded p-1 text-zinc-400 hover:bg-green-50 hover:text-green-600"
 									>
 										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/>
 										</svg>
 									</button>
 									<button
@@ -604,7 +678,12 @@ function handleResizeMouseUp() {
 										class="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
 									>
 										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+											/>
 										</svg>
 									</button>
 								{/if}
