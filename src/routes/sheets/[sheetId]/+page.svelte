@@ -629,38 +629,40 @@
 			{#if loading}
 				<p class="text-zinc-500">Loading…</p>
 			{:else}
-				<DataTable
-					{columns}
-					{rows}
-					{cells}
-					editable={connected}
-					editableRowIds={!connected && pendingOfflineRows.length > 0
-						? new Set(pendingOfflineRows.map((p) => p.tempId))
-						: undefined}
-					editingRowIds={!connected && pendingOfflineRows.length > 0
-						? new Set(pendingOfflineRows.map((p) => p.tempId))
-						: undefined}
-					{onCellChange}
-					{onDeleteRow}
-					{selectedRowIds}
-					onSelectedRowIdsChange={(ids) => (selectedRowIds = ids)}
-					onColumnEdit={openEditColumn}
-					onAddColumn={connected ? openAddColumn : undefined}
-					onColumnReorder={connected ? onColumnReorder : undefined}
-					onColumnResize={connected ? onColumnResize : undefined}
-					{onEditingStart}
-					{onEditingEnd}
-					onRowReorder={connected ? onRowReorder : undefined}
-					permission="edit"
-				/>
-				<button
-					type="button"
-					onclick={addRow}
-					disabled={!connected}
-					class="mt-2 w-full rounded-lg border border-dashed border-zinc-300 py-3 text-center text-sm font-medium text-zinc-500 hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
-				>
-					+ Add row
-				</button>
+				<div class="max-h-[calc(100vh-8rem)] overflow-y-auto">
+					<DataTable
+						{columns}
+						{rows}
+						{cells}
+						editable={connected}
+						editableRowIds={!connected && pendingOfflineRows.length > 0
+							? new Set(pendingOfflineRows.map((p) => p.tempId))
+							: undefined}
+						editingRowIds={!connected && pendingOfflineRows.length > 0
+							? new Set(pendingOfflineRows.map((p) => p.tempId))
+							: undefined}
+						{onCellChange}
+						{onDeleteRow}
+						{selectedRowIds}
+						onSelectedRowIdsChange={(ids) => (selectedRowIds = ids)}
+						onColumnEdit={openEditColumn}
+						onAddColumn={connected ? openAddColumn : undefined}
+						onColumnReorder={connected ? onColumnReorder : undefined}
+						onColumnResize={connected ? onColumnResize : undefined}
+						{onEditingStart}
+						{onEditingEnd}
+						onRowReorder={connected ? onRowReorder : undefined}
+						permission="edit"
+					/>
+					<button
+						type="button"
+						onclick={addRow}
+						disabled={!connected}
+						class="sticky bottom-0 mt-2 w-full rounded-lg border border-dashed border-zinc-300 bg-zinc-50/95 py-3 text-center text-sm font-medium text-zinc-500 backdrop-blur-sm hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						+ add row
+					</button>
+				</div>
 			{/if}
 		</main>
 	</div>
