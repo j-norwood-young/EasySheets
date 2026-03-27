@@ -619,7 +619,7 @@
 						</td>
 					{/each}
 					{#if canDelete}
-						<td class="px-2 py-2">
+						<td class="px-2 py-2 text-center">
 							<button
 								type="button"
 								aria-label="Delete row"
