@@ -660,7 +660,7 @@
 						disabled={!connected}
 						class="sticky bottom-0 mt-2 w-full rounded-lg border border-dashed border-zinc-300 bg-zinc-50/95 py-3 text-center text-sm font-medium text-zinc-500 backdrop-blur-sm hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						+ add row
+						+ Add row
 					</button>
 				</div>
 			{/if}
