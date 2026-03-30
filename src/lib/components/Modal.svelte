@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import type { Snippet } from 'svelte'
 
 	let {
 		open = false,
@@ -19,50 +19,50 @@
 		closeOnBackdrop = true,
 		/** When false, pressing Escape does not close the modal. */
 		closeOnEscape = true,
-		children = undefined as Snippet | undefined
+		children = undefined as Snippet | undefined,
 	}: {
-		open?: boolean;
-		title?: string;
-		description?: string;
-		onClose?: () => void;
-		onPrimary?: () => void | Promise<void>;
-		primaryLabel?: string;
-		primaryVariant?: 'default' | 'danger';
-		onSecondary?: () => void | Promise<void>;
-		secondaryLabel?: string;
-		closeOnBackdrop?: boolean;
-		closeOnEscape?: boolean;
-		children?: Snippet;
-	} = $props();
+		open?: boolean
+		title?: string
+		description?: string
+		onClose?: () => void
+		onPrimary?: () => void | Promise<void>
+		primaryLabel?: string
+		primaryVariant?: 'default' | 'danger'
+		onSecondary?: () => void | Promise<void>
+		secondaryLabel?: string
+		closeOnBackdrop?: boolean
+		closeOnEscape?: boolean
+		children?: Snippet
+	} = $props()
 
-	let busy = $state(false);
+	let busy = $state(false)
 
 	async function handlePrimaryClick() {
-		if (!onPrimary) return;
-		if (busy) return;
-		busy = true;
+		if (!onPrimary) return
+		if (busy) return
+		busy = true
 		try {
-			await onPrimary();
+			await onPrimary()
 		} finally {
-			busy = false;
+			busy = false
 		}
 	}
 
 	async function handleSecondaryClick() {
-		const fn = onSecondary ?? onClose;
-		if (!fn) return;
-		if (busy) return;
-		busy = true;
+		const fn = onSecondary ?? onClose
+		if (!fn) return
+		if (busy) return
+		busy = true
 		try {
-			await fn();
+			await fn()
 		} finally {
-			busy = false;
+			busy = false
 		}
 	}
 
 	function requestClose() {
-		if (busy) return;
-		onClose?.();
+		if (busy) return
+		onClose?.()
 	}
 </script>
 
@@ -74,14 +74,14 @@
 		aria-label={title}
 		tabindex="-1"
 		onclick={(event) => {
-			if (!closeOnBackdrop) return;
-			if (event.target === event.currentTarget) requestClose();
+			if (!closeOnBackdrop) return
+			if (event.target === event.currentTarget) requestClose()
 		}}
 		onkeydown={(event) => {
 			if (event.key === 'Escape' && closeOnEscape) {
-				event.stopPropagation();
-				event.preventDefault();
-				requestClose();
+				event.stopPropagation()
+				event.preventDefault()
+				requestClose()
 			}
 		}}
 	>
@@ -98,7 +98,7 @@
 				{#if onClose}
 					<button
 						type="button"
-						class="-m-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
+						class="-m-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:outline-none"
 						aria-label="Close"
 						onclick={requestClose}
 					>
@@ -142,4 +142,3 @@
 		</div>
 	</div>
 {/if}
-

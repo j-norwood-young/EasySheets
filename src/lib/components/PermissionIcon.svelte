@@ -1,11 +1,11 @@
 <script lang="ts">
 	/** 'read' | 'append' | 'edit' — used for share link permissions. */
 	let { permission, class: className = '' } = $props<{
-		permission: 'read' | 'append' | 'edit';
-		class?: string;
-	}>();
+		permission: 'read' | 'append' | 'edit'
+		class?: string
+	}>()
 
-	const tooltip = $derived(`${permission.charAt(0).toUpperCase() + permission.slice(1)} Access`);
+	const tooltip = $derived(`${permission.charAt(0).toUpperCase() + permission.slice(1)} Access`)
 </script>
 
 <span
@@ -14,7 +14,13 @@
 	aria-label={tooltip}
 >
 	{#if permission === 'read'}
-		<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+		<svg
+			class="h-4 w-4"
+			fill="none"
+			stroke="currentColor"
+			viewBox="0 0 24 24"
+			aria-hidden="true"
+		>
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -29,11 +35,28 @@
 			/>
 		</svg>
 	{:else if permission === 'append'}
-		<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+		<svg
+			class="h-4 w-4"
+			fill="none"
+			stroke="currentColor"
+			viewBox="0 0 24 24"
+			aria-hidden="true"
+		>
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				stroke-width="2"
+				d="M12 4v16m8-8H4"
+			/>
 		</svg>
 	{:else}
-		<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+		<svg
+			class="h-4 w-4"
+			fill="none"
+			stroke="currentColor"
+			viewBox="0 0 24 24"
+			aria-hidden="true"
+		>
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"

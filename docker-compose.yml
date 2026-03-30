@@ -1,16 +1,16 @@
 services:
-  app:
-    image: harbor.10layer.com/sovereignoffice/easysheets:${IMAGE_TAG:-latest}
-    env_file: .env
-    ports:
-      - "${PORT:-3000}:3000"
-    environment:
-      - NODE_ENV=production
-      # App always listens on 3000 inside the container; PORT in .env only sets the host port mapping above
-      - PORT=3000
-      - DB_PATH=${DB_PATH:-file:/data/sqlite.db}
-    volumes:
-      - easysheets-data:/data
+    app:
+        image: harbor.10layer.com/sovereignoffice/easysheets:${IMAGE_TAG:-latest}
+        env_file: .env
+        ports:
+            - '${PORT:-3000}:3000'
+        environment:
+            - NODE_ENV=production
+            # App always listens on 3000 inside the container; PORT in .env only sets the host port mapping above
+            - PORT=3000
+            - DB_PATH=${DB_PATH:-file:/data/sqlite.db}
+        volumes:
+            - easysheets-data:/data
 
 volumes:
-  easysheets-data:
+    easysheets-data:

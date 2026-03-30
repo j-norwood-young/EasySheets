@@ -1,8 +1,8 @@
 <script lang="ts">
-	import './layout.css';
-	import favicon from '$lib/assets/Building.svg';
+	import './layout.css'
+	import favicon from '$lib/assets/Building.svg'
 
-	let { children } = $props();
+	let { children } = $props()
 </script>
 
 <svelte:head>

@@ -1,6 +1,7 @@
 <script lang="ts">
-	let { connected = true, pendingCount = 0 }: { connected?: boolean; pendingCount?: number } = $props();
-	const showBanner = $derived(!connected);
+	let { connected = true, pendingCount = 0 }: { connected?: boolean; pendingCount?: number } =
+		$props()
+	const showBanner = $derived(!connected)
 </script>
 
 {#if showBanner}
