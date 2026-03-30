@@ -1,17 +1,21 @@
 <script lang="ts">
-	import { parseLinkifiedSegments, shortenUrlDisplay } from '$lib/linkify';
+	import { parseLinkifiedSegments, shortenUrlDisplay } from '$lib/linkify'
 
-	let { text = '', maxLength = 25, class: className = '' } = $props<{
-		text: string;
-		maxLength?: number;
-		class?: string;
-	}>();
+	let {
+		text = '',
+		maxLength = 25,
+		class: className = '',
+	} = $props<{
+		text: string
+		maxLength?: number
+		class?: string
+	}>()
 
-	const segments = $derived(parseLinkifiedSegments(text));
+	const segments = $derived(parseLinkifiedSegments(text))
 
 	function hrefForUrl(url: string): string {
-		if (/^https?:\/\//i.test(url)) return url;
-		return `https://${url}`;
+		if (/^https?:\/\//i.test(url)) return url
+		return `https://${url}`
 	}
 </script>
 

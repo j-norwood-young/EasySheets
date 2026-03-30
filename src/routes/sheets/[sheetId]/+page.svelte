@@ -1,159 +1,159 @@
 <script lang="ts">
-	import DataTable from '$lib/components/DataTable.svelte';
-	import OfflineBanner from '$lib/components/OfflineBanner.svelte';
-	import LogoLink from '$lib/components/LogoLink.svelte';
-	import PermissionIcon from '$lib/components/PermissionIcon.svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import type { ColumnFormat } from '$lib/formatCell';
-	import { createSheetStreamConnection } from '$lib/sseConnection';
-	import { addOrUpdateSheet } from '$lib/adminSheetsStorage';
-	import { page } from '$app/state';
-	import { onMount, tick } from 'svelte';
-	import { replaceState } from '$app/navigation';
+	import DataTable from '$lib/components/DataTable.svelte'
+	import OfflineBanner from '$lib/components/OfflineBanner.svelte'
+	import LogoLink from '$lib/components/LogoLink.svelte'
+	import PermissionIcon from '$lib/components/PermissionIcon.svelte'
+	import Modal from '$lib/components/Modal.svelte'
+	import type { ColumnFormat } from '$lib/formatCell'
+	import { createSheetStreamConnection } from '$lib/sseConnection'
+	import { addOrUpdateSheet } from '$lib/adminSheetsStorage'
+	import { page } from '$app/state'
+	import { onMount, tick } from 'svelte'
+	import { replaceState } from '$app/navigation'
 
 	type ColumnRow = {
-		id: string;
-		name: string;
-		type: string;
-		order?: number;
-		sheetId?: string;
-		format?: ColumnFormat | null;
+		id: string
+		name: string
+		type: string
+		order?: number
+		sheetId?: string
+		format?: ColumnFormat | null
 		/** Optional fixed width in pixels, shared across views. */
-		width?: number | null;
-	};
+		width?: number | null
+	}
 
-	type RowRow = { id: string; sheetId: string; createdAt: Date | null; orderNum?: number };
+	type RowRow = { id: string; sheetId: string; createdAt: Date | null; orderNum?: number }
 
 	function parseColumnFormat(
 		format: string | ColumnFormat | null | undefined
 	): ColumnFormat | null | undefined {
-		if (format == null) return format;
+		if (format == null) return format
 		if (typeof format === 'string') {
 			try {
-				return JSON.parse(format) as ColumnFormat;
+				return JSON.parse(format) as ColumnFormat
 			} catch {
-				return undefined;
+				return undefined
 			}
 		}
-		return format;
+		return format
 	}
 
-	let { data } = $props();
-	const sheetId = $derived(page.params.sheetId);
+	let { data } = $props()
+	const sheetId = $derived(page.params.sheetId)
 
-	let columns = $state<ColumnRow[]>([]);
-	let rows = $state<RowRow[]>([]);
-	let cells = $state<{ rowId: string; columnId: string; value: string }[]>([]);
-	let loading = $state(false);
-	let initialLoadDone = $state(false);
+	let columns = $state<ColumnRow[]>([])
+	let rows = $state<RowRow[]>([])
+	let cells = $state<{ rowId: string; columnId: string; value: string }[]>([])
+	let loading = $state(false)
+	let initialLoadDone = $state(false)
 
 	$effect(() => {
 		columns = (data.columns ?? []).map((col) => ({
 			...col,
 			format: parseColumnFormat(col.format as string | ColumnFormat | null),
-			width: (col as ColumnRow).width ?? null
-		}));
-		rows = data.rows ?? [];
-		cells = data.cells ?? [];
-	});
+			width: (col as ColumnRow).width ?? null,
+		}))
+		rows = data.rows ?? []
+		cells = data.cells ?? []
+	})
 
 	// Record admin visit so the sheet appears in "Your sheets" on the landing page
 	$effect(() => {
-		if (typeof window === 'undefined' || !sheetId) return;
-		const sheet = (data as { sheet?: { id: string; name?: string | null } }).sheet;
-		addOrUpdateSheet(sheetId, sheet?.name);
-	});
-	let addColumnOpen = $state(false);
+		if (typeof window === 'undefined' || !sheetId) return
+		const sheet = (data as { sheet?: { id: string; name?: string | null } }).sheet
+		addOrUpdateSheet(sheetId, sheet?.name)
+	})
+	let addColumnOpen = $state(false)
 	/** When set, we're editing this column; otherwise adding new. */
-	let editColumnId = $state<string | null>(null);
-	let newColName = $state('');
-	let newColType = $state<string>('string');
-	let newColFormat = $state<ColumnFormat>({});
-	let sheetName = $state('');
-	let savingName = $state(false);
+	let editColumnId = $state<string | null>(null)
+	let newColName = $state('')
+	let newColType = $state<string>('string')
+	let newColFormat = $state<ColumnFormat>({})
+	let sheetName = $state('')
+	let savingName = $state(false)
 	$effect(() => {
-		const sheet = (data as { sheet?: { name?: string | null } }).sheet;
-		sheetName = sheet?.name ?? '';
-	});
-	let shareOpen = $state(false);
-	let shareLinks = $state<{ permission: string; token: string }[]>([]);
-	let copied = $state<string | null>(null);
-	let error = $state<string | null>(null);
+		const sheet = (data as { sheet?: { name?: string | null } }).sheet
+		sheetName = sheet?.name ?? ''
+	})
+	let shareOpen = $state(false)
+	let shareLinks = $state<{ permission: string; token: string }[]>([])
+	let copied = $state<string | null>(null)
+	let error = $state<string | null>(null)
 	/** When true, the column edit modal shows "Are you sure?" for remove column. */
-	let confirmRemoveColumn = $state(false);
+	let confirmRemoveColumn = $state(false)
 
 	/** SSE connection state; when false, editing is disabled and add-row is offline-only. */
-	let connected = $state(true);
+	let connected = $state(true)
 	/** Rows added while offline; synced when we reconnect. */
-	let pendingOfflineRows = $state<{ tempId: string; cells: Record<string, string> }[]>([]);
+	let pendingOfflineRows = $state<{ tempId: string; cells: Record<string, string> }[]>([])
 
-	let isEditing = $state(false);
-	let pendingRows = $state<RowRow[] | null>(null);
-	let pendingCells = $state<{ rowId: string; columnId: string; value: string }[] | null>(null);
+	let isEditing = $state(false)
+	let pendingRows = $state<RowRow[] | null>(null)
+	let pendingCells = $state<{ rowId: string; columnId: string; value: string }[] | null>(null)
 	/** Row IDs selected for bulk delete (admin view). */
-	let selectedRowIds = $state<Set<string>>(new Set());
-	let deleteRowId = $state<string | null>(null);
-	let bulkDeleteOpen = $state(false);
+	let selectedRowIds = $state<Set<string>>(new Set())
+	let deleteRowId = $state<string | null>(null)
+	let bulkDeleteOpen = $state(false)
 
 	function applyPending() {
 		if (pendingRows != null && pendingCells != null) {
-			rows = pendingRows;
-			cells = pendingCells;
-			pendingRows = null;
-			pendingCells = null;
+			rows = pendingRows
+			cells = pendingCells
+			pendingRows = null
+			pendingCells = null
 		}
 	}
 	function onEditingStart() {
-		isEditing = true;
+		isEditing = true
 	}
 	function onEditingEnd() {
-		isEditing = false;
-		applyPending();
+		isEditing = false
+		applyPending()
 	}
 
-	const baseUrl = $derived(typeof window !== 'undefined' ? window.location.origin : '');
+	const baseUrl = $derived(typeof window !== 'undefined' ? window.location.origin : '')
 
 	function buildRowsUrl() {
-		return `/api/sheets/${sheetId}/rows`;
+		return `/api/sheets/${sheetId}/rows`
 	}
 
-	let fetchAbort: AbortController | null = null;
+	let fetchAbort: AbortController | null = null
 
 	async function fetchRows() {
-		fetchAbort?.abort();
-		fetchAbort = new AbortController();
-		const { signal } = fetchAbort;
-		const url = buildRowsUrl();
+		fetchAbort?.abort()
+		fetchAbort = new AbortController()
+		const { signal } = fetchAbort
+		const url = buildRowsUrl()
 		try {
-			const res = await fetch(url, { signal, cache: 'no-store' });
+			const res = await fetch(url, { signal, cache: 'no-store' })
 			if (!res.ok) {
-				const text = await res.text();
-				throw new Error(text || 'Failed to load rows');
+				const text = await res.text()
+				throw new Error(text || 'Failed to load rows')
 			}
-			const json = await res.json();
-			const newRows = (json.rows ?? []) as RowRow[];
-			const newCells = json.cells ?? [];
+			const json = await res.json()
+			const newRows = (json.rows ?? []) as RowRow[]
+			const newCells = json.cells ?? []
 			if (isEditing) {
-				pendingRows = newRows;
-				pendingCells = newCells;
+				pendingRows = newRows
+				pendingCells = newCells
 			} else {
-				rows = newRows;
-				cells = newCells;
+				rows = newRows
+				cells = newCells
 			}
 		} catch (e) {
-			if (e instanceof DOMException && e.name === 'AbortError') return;
-			error = e instanceof Error ? e.message : 'Failed to load';
+			if (e instanceof DOMException && e.name === 'AbortError') return
+			error = e instanceof Error ? e.message : 'Failed to load'
 		} finally {
-			loading = false;
+			loading = false
 		}
 	}
 
 	async function fetchSheet() {
 		try {
-			const res = await fetch(`/api/sheets/${sheetId}`, { cache: 'no-store' });
+			const res = await fetch(`/api/sheets/${sheetId}`, { cache: 'no-store' })
 			if (res.ok) {
-				const json = await res.json();
-				columns = (json.columns ?? []) as ColumnRow[];
+				const json = await res.json()
+				columns = (json.columns ?? []) as ColumnRow[]
 			}
 		} catch {
 			// non-critical background refresh
@@ -161,148 +161,151 @@
 	}
 
 	async function syncPendingOfflineRows() {
-		if (pendingOfflineRows.length === 0) return;
-		const toSync = [...pendingOfflineRows];
-		pendingOfflineRows = [];
+		if (pendingOfflineRows.length === 0) return
+		const toSync = [...pendingOfflineRows]
+		pendingOfflineRows = []
 		// Remove temp-id rows from local state so refetch replaces with server data
-		rows = rows.filter((r) => !r.id.startsWith('offline-'));
-		cells = cells.filter((c) => !c.rowId.startsWith('offline-'));
+		rows = rows.filter((r) => !r.id.startsWith('offline-'))
+		cells = cells.filter((c) => !c.rowId.startsWith('offline-'))
 		for (let i = 0; i < toSync.length; i++) {
-			const { cells: cellValues } = toSync[i];
+			const { cells: cellValues } = toSync[i]
 			try {
 				const res = await fetch(`/api/sheets/${sheetId}/rows`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ cells: cellValues })
-				});
-				if (!res.ok) throw new Error('Sync failed');
+					body: JSON.stringify({ cells: cellValues }),
+				})
+				if (!res.ok) throw new Error('Sync failed')
 			} catch {
 				// Re-queue remaining rows (including this one) for next reconnect
-				pendingOfflineRows = toSync.slice(i);
-				break;
+				pendingOfflineRows = toSync.slice(i)
+				break
 			}
 		}
-		fetchRows();
-		fetchSheet();
+		fetchRows()
+		fetchSheet()
 	}
 
 	onMount(() => {
-		if (!sheetId) return;
-		initialLoadDone = true;
+		if (!sheetId) return
+		initialLoadDone = true
 
 		// Open Add Column modal when arriving from "Create blank sheet" (?addColumn=1)
 		const params =
-			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+			typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
 		if (params?.get('addColumn') === '1') {
 			tick().then(() => {
-				openAddColumn();
-				const u = new URL(window.location.href);
-				u.searchParams.delete('addColumn');
+				openAddColumn()
+				const u = new URL(window.location.href)
+				u.searchParams.delete('addColumn')
 				const target =
-					u.pathname + (u.searchParams.toString() ? '?' + u.searchParams.toString() : '');
-				replaceState(target, {});
-			});
+					u.pathname + (u.searchParams.toString() ? '?' + u.searchParams.toString() : '')
+				replaceState(target, {})
+			})
 		}
 
-		let sseDebounce: ReturnType<typeof setTimeout> | null = null;
-		let wasConnected = false;
+		let sseDebounce: ReturnType<typeof setTimeout> | null = null
+		let wasConnected = false
 		const cleanup = createSheetStreamConnection(
-			typeof window !== 'undefined' ? `${window.location.origin}/api/sheets/${sheetId}/stream` : '',
+			typeof window !== 'undefined'
+				? `${window.location.origin}/api/sheets/${sheetId}/stream`
+				: '',
 			{
 				onConnectedChange(nowConnected: boolean) {
-					connected = nowConnected;
+					connected = nowConnected
 					if (nowConnected && wasConnected === false) {
-						if (pendingOfflineRows.length > 0) syncPendingOfflineRows();
+						if (pendingOfflineRows.length > 0) syncPendingOfflineRows()
 						else {
-							fetchRows();
-							fetchSheet();
+							fetchRows()
+							fetchSheet()
 						}
 					}
-					wasConnected = nowConnected;
+					wasConnected = nowConnected
 				},
 				onMessage() {
-					if (sseDebounce) clearTimeout(sseDebounce);
+					if (sseDebounce) clearTimeout(sseDebounce)
 					sseDebounce = setTimeout(() => {
-						sseDebounce = null;
-						fetchSheet();
-						fetchRows();
-					}, 500);
-				}
+						sseDebounce = null
+						fetchSheet()
+						fetchRows()
+					}, 500)
+				},
 			}
-		);
+		)
 		return () => {
-			cleanup();
-			if (sseDebounce) clearTimeout(sseDebounce);
-			fetchAbort?.abort();
-		};
-	});
+			cleanup()
+			if (sseDebounce) clearTimeout(sseDebounce)
+			fetchAbort?.abort()
+		}
+	})
 
 	$effect(() => {
-		if (typeof window === 'undefined' || !initialLoadDone) return;
-		sheetId;
-		fetchRows();
-	});
+		if (typeof window === 'undefined' || !initialLoadDone) return
+		sheetId
+		fetchRows()
+	})
 
 	function buildFormatPayload(): ColumnFormat | null {
-		const isNumeric = newColType === 'number' || newColType === 'currency';
-		const f: ColumnFormat = {};
+		const isNumeric = newColType === 'number' || newColType === 'currency'
+		const f: ColumnFormat = {}
 		if (
 			newColType === 'currency' &&
 			newColFormat.currencySymbol != null &&
 			newColFormat.currencySymbol !== ''
 		)
-			f.currencySymbol = newColFormat.currencySymbol;
-		const dp = newColFormat.decimalPlaces;
-		if (isNumeric && typeof dp === 'number' && !Number.isNaN(dp) && dp >= 0) f.decimalPlaces = dp;
-		if (isNumeric && newColFormat.thousandsSeparator === true) f.thousandsSeparator = true;
-		return Object.keys(f).length ? f : null;
+			f.currencySymbol = newColFormat.currencySymbol
+		const dp = newColFormat.decimalPlaces
+		if (isNumeric && typeof dp === 'number' && !Number.isNaN(dp) && dp >= 0)
+			f.decimalPlaces = dp
+		if (isNumeric && newColFormat.thousandsSeparator === true) f.thousandsSeparator = true
+		return Object.keys(f).length ? f : null
 	}
 
 	function openAddColumn() {
-		editColumnId = null;
-		confirmRemoveColumn = false;
-		newColName = '';
-		newColType = 'string';
-		newColFormat = {};
-		addColumnOpen = true;
+		editColumnId = null
+		confirmRemoveColumn = false
+		newColName = ''
+		newColType = 'string'
+		newColFormat = {}
+		addColumnOpen = true
 	}
 
 	function openEditColumn(col: ColumnRow) {
-		editColumnId = col.id;
-		confirmRemoveColumn = false;
-		newColName = col.name;
-		newColType = col.type;
+		editColumnId = col.id
+		confirmRemoveColumn = false
+		newColName = col.name
+		newColType = col.type
 		newColFormat = {
 			currencySymbol: col.format?.currencySymbol ?? '',
 			decimalPlaces: col.format?.decimalPlaces,
-			thousandsSeparator: col.format?.thousandsSeparator ?? false
-		};
-		addColumnOpen = true;
+			thousandsSeparator: col.format?.thousandsSeparator ?? false,
+		}
+		addColumnOpen = true
 	}
 
 	async function saveColumn() {
-		const name = newColName.trim();
-		if (!name) return;
-		const format = buildFormatPayload();
+		const name = newColName.trim()
+		if (!name) return
+		const format = buildFormatPayload()
 		try {
 			if (editColumnId) {
 				const res = await fetch(`/api/sheets/${sheetId}/columns/${editColumnId}`, {
 					method: 'PATCH',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name, type: newColType, format })
-				});
-				if (!res.ok) throw new Error('Failed to update column');
+					body: JSON.stringify({ name, type: newColType, format }),
+				})
+				if (!res.ok) throw new Error('Failed to update column')
 				columns = columns.map((c) =>
 					c.id === editColumnId ? { ...c, name, type: newColType, format } : c
-				);
+				)
 			} else {
 				const res = await fetch(`/api/sheets/${sheetId}/columns`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name, type: newColType, format })
-				});
-				if (!res.ok) throw new Error('Failed to add column');
-				const col = await res.json();
+					body: JSON.stringify({ name, type: newColType, format }),
+				})
+				if (!res.ok) throw new Error('Failed to add column')
+				const col = await res.json()
 				columns = [
 					...columns,
 					{
@@ -311,256 +314,263 @@
 						type: col.type,
 						order: col.order,
 						sheetId,
-						format: col.format ?? null
-					}
-				];
+						format: col.format ?? null,
+					},
+				]
 			}
-			newColName = '';
-			newColType = 'string';
-			newColFormat = {};
-			editColumnId = null;
-			addColumnOpen = false;
+			newColName = ''
+			newColType = 'string'
+			newColFormat = {}
+			editColumnId = null
+			addColumnOpen = false
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed';
+			error = e instanceof Error ? e.message : 'Failed'
 		}
 	}
 
 	async function removeColumn() {
-		if (!editColumnId) return;
+		if (!editColumnId) return
 		try {
 			const res = await fetch(`/api/sheets/${sheetId}/columns/${editColumnId}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) throw new Error('Failed to remove column');
-			columns = columns.filter((c) => c.id !== editColumnId);
-			cells = cells.filter((c) => c.columnId !== editColumnId);
-			confirmRemoveColumn = false;
-			editColumnId = null;
-			newColName = '';
-			newColType = 'string';
-			newColFormat = {};
-			addColumnOpen = false;
+				method: 'DELETE',
+			})
+			if (!res.ok) throw new Error('Failed to remove column')
+			columns = columns.filter((c) => c.id !== editColumnId)
+			cells = cells.filter((c) => c.columnId !== editColumnId)
+			confirmRemoveColumn = false
+			editColumnId = null
+			newColName = ''
+			newColType = 'string'
+			newColFormat = {}
+			addColumnOpen = false
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to remove column';
+			error = e instanceof Error ? e.message : 'Failed to remove column'
 		}
 	}
 
 	async function addRow() {
-		const cellValues: Record<string, string> = {};
-		for (const col of columns) cellValues[col.id] = '';
+		const cellValues: Record<string, string> = {}
+		for (const col of columns) cellValues[col.id] = ''
 		if (!connected) {
-			const tempId = `offline-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+			const tempId = `offline-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 			const nextOrderNum =
-				rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.orderNum ?? 0)) + 1;
-			rows = [...rows, { id: tempId, sheetId: sheetId!, createdAt: null, orderNum: nextOrderNum }];
-			for (const col of columns) cells = [...cells, { rowId: tempId, columnId: col.id, value: '' }];
-			pendingOfflineRows = [...pendingOfflineRows, { tempId, cells: { ...cellValues } }];
-			await tick();
-			const lastTr = document.querySelector('table tbody tr:last-child');
-			lastTr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-			return;
+				rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.orderNum ?? 0)) + 1
+			rows = [
+				...rows,
+				{ id: tempId, sheetId: sheetId!, createdAt: null, orderNum: nextOrderNum },
+			]
+			for (const col of columns)
+				cells = [...cells, { rowId: tempId, columnId: col.id, value: '' }]
+			pendingOfflineRows = [...pendingOfflineRows, { tempId, cells: { ...cellValues } }]
+			await tick()
+			const lastTr = document.querySelector('table tbody tr:last-child')
+			lastTr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+			return
 		}
 		try {
 			const res = await fetch(`/api/sheets/${sheetId}/rows`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ cells: cellValues })
-			});
-			if (!res.ok) throw new Error('Failed to add row');
-			const json = await res.json();
-			const id = json.id as string;
+				body: JSON.stringify({ cells: cellValues }),
+			})
+			if (!res.ok) throw new Error('Failed to add row')
+			const json = await res.json()
+			const id = json.id as string
 			const nextOrderNum =
-				rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.orderNum ?? 0)) + 1;
-			rows = [...rows, { id, sheetId: sheetId!, createdAt: null, orderNum: nextOrderNum }];
-			for (const col of columns) cells = [...cells, { rowId: id, columnId: col.id, value: '' }];
-			isEditing = true;
-			await tick();
-			const lastTr = document.querySelector('table tbody tr:last-child');
-			lastTr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-			const firstInput = lastTr?.querySelector<HTMLInputElement>('input');
-			firstInput?.focus();
+				rows.length === 0 ? 0 : Math.max(...rows.map((r) => r.orderNum ?? 0)) + 1
+			rows = [...rows, { id, sheetId: sheetId!, createdAt: null, orderNum: nextOrderNum }]
+			for (const col of columns)
+				cells = [...cells, { rowId: id, columnId: col.id, value: '' }]
+			isEditing = true
+			await tick()
+			const lastTr = document.querySelector('table tbody tr:last-child')
+			lastTr?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+			const firstInput = lastTr?.querySelector<HTMLInputElement>('input')
+			firstInput?.focus()
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed';
+			error = e instanceof Error ? e.message : 'Failed'
 		}
 	}
 
-	let cellDebounce: ReturnType<typeof setTimeout> | null = null;
+	let cellDebounce: ReturnType<typeof setTimeout> | null = null
 	function onCellChange(rowId: string, columnId: string, value: string) {
-		cells = cells.map((c) => (c.rowId === rowId && c.columnId === columnId ? { ...c, value } : c));
+		cells = cells.map((c) =>
+			c.rowId === rowId && c.columnId === columnId ? { ...c, value } : c
+		)
 		// Keep pending offline row cells in sync so they POST with correct values on reconnect
 		if (rowId.startsWith('offline-')) {
-			const pending = pendingOfflineRows.find((p) => p.tempId === rowId);
+			const pending = pendingOfflineRows.find((p) => p.tempId === rowId)
 			if (pending) {
-				pending.cells[columnId] = value;
-				pendingOfflineRows = pendingOfflineRows;
+				pending.cells[columnId] = value
+				pendingOfflineRows = pendingOfflineRows
 			}
 		}
-		if (!connected) return;
-		if (cellDebounce) clearTimeout(cellDebounce);
+		if (!connected) return
+		if (cellDebounce) clearTimeout(cellDebounce)
 		cellDebounce = setTimeout(async () => {
-			cellDebounce = null;
+			cellDebounce = null
 			try {
 				await fetch(`/api/sheets/${sheetId}/cells`, {
 					method: 'PATCH',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ rowId, columnId, value })
-				});
+					body: JSON.stringify({ rowId, columnId, value }),
+				})
 			} catch {
 				// ignore
 			}
-		}, 300);
+		}, 300)
 	}
 
 	/** Deletes one row after confirmation in the UI. */
 	async function deleteRowById(rowId: string) {
 		if (!connected && rowId.startsWith('offline-')) {
-			rows = rows.filter((r) => r.id !== rowId);
-			cells = cells.filter((c) => c.rowId !== rowId);
-			pendingOfflineRows = pendingOfflineRows.filter((p) => p.tempId !== rowId);
-			return;
+			rows = rows.filter((r) => r.id !== rowId)
+			cells = cells.filter((c) => c.rowId !== rowId)
+			pendingOfflineRows = pendingOfflineRows.filter((p) => p.tempId !== rowId)
+			return
 		}
 		try {
 			const res = await fetch(`/api/sheets/${sheetId}/rows/${rowId}`, {
-				method: 'DELETE'
-			});
-			if (!res.ok) throw new Error('Failed to delete');
-			rows = rows.filter((r) => r.id !== rowId);
-			cells = cells.filter((c) => c.rowId !== rowId);
-			selectedRowIds = new Set([...selectedRowIds].filter((id) => id !== rowId));
+				method: 'DELETE',
+			})
+			if (!res.ok) throw new Error('Failed to delete')
+			rows = rows.filter((r) => r.id !== rowId)
+			cells = cells.filter((c) => c.rowId !== rowId)
+			selectedRowIds = new Set([...selectedRowIds].filter((id) => id !== rowId))
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed';
+			error = e instanceof Error ? e.message : 'Failed'
 		}
 	}
 	function onDeleteRow(rowId: string) {
-		deleteRowId = rowId;
+		deleteRowId = rowId
 	}
 	async function deleteSelectedRows() {
-		const ids = Array.from(selectedRowIds);
-		const n = ids.length;
-		if (n === 0) return;
-		bulkDeleteOpen = true;
+		const ids = Array.from(selectedRowIds)
+		const n = ids.length
+		if (n === 0) return
+		bulkDeleteOpen = true
 	}
 
 	async function confirmSingleDelete() {
-		if (!deleteRowId) return;
-		const id = deleteRowId;
-		deleteRowId = null;
-		await deleteRowById(id);
+		if (!deleteRowId) return
+		const id = deleteRowId
+		deleteRowId = null
+		await deleteRowById(id)
 	}
 
 	async function confirmBulkDelete() {
-		const ids = Array.from(selectedRowIds);
-		bulkDeleteOpen = false;
+		const ids = Array.from(selectedRowIds)
+		bulkDeleteOpen = false
 		for (const id of ids) {
-			await deleteRowById(id);
+			await deleteRowById(id)
 		}
-		selectedRowIds = new Set();
+		selectedRowIds = new Set()
 	}
 
 	async function onRowReorder(fromIndex: number, toIndex: number) {
-		const reordered = [...rows];
-		const [removed] = reordered.splice(fromIndex, 1);
-		reordered.splice(toIndex, 0, removed);
-		const order = reordered.map((r) => r.id);
+		const reordered = [...rows]
+		const [removed] = reordered.splice(fromIndex, 1)
+		reordered.splice(toIndex, 0, removed)
+		const order = reordered.map((r) => r.id)
 		try {
 			const res = await fetch(`/api/sheets/${sheetId}/rows`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ order })
-			});
-			if (!res.ok) throw new Error('Failed to reorder');
-			rows = reordered;
+				body: JSON.stringify({ order }),
+			})
+			if (!res.ok) throw new Error('Failed to reorder')
+			rows = reordered
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to reorder';
+			error = e instanceof Error ? e.message : 'Failed to reorder'
 		}
 	}
 
 	async function onColumnReorder(fromIndex: number, toIndex: number) {
-		const reordered = [...columns];
-		const [removed] = reordered.splice(fromIndex, 1);
-		reordered.splice(toIndex, 0, removed);
-		const order = reordered.map((c) => c.id);
+		const reordered = [...columns]
+		const [removed] = reordered.splice(fromIndex, 1)
+		reordered.splice(toIndex, 0, removed)
+		const order = reordered.map((c) => c.id)
 		try {
 			const res = await fetch(`/api/sheets/${sheetId}/columns`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ order })
-			});
-			if (!res.ok) throw new Error('Failed to reorder columns');
-			columns = reordered.map((c, i) => ({ ...c, order: i }));
+				body: JSON.stringify({ order }),
+			})
+			if (!res.ok) throw new Error('Failed to reorder columns')
+			columns = reordered.map((c, i) => ({ ...c, order: i }))
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to reorder columns';
+			error = e instanceof Error ? e.message : 'Failed to reorder columns'
 		}
 	}
 
-	const columnWidthSaveTimers: Record<string, ReturnType<typeof setTimeout> | null> = {};
+	const columnWidthSaveTimers: Record<string, ReturnType<typeof setTimeout> | null> = {}
 
 	function applyLocalColumnWidth(columnId: string, width: number) {
-		columns = columns.map((c) => (c.id === columnId ? { ...c, width } : c));
+		columns = columns.map((c) => (c.id === columnId ? { ...c, width } : c))
 	}
 
 	function onColumnResize(columnId: string, width: number) {
-		applyLocalColumnWidth(columnId, width);
-		if (!connected) return;
-		const existing = columnWidthSaveTimers[columnId];
-		if (existing) clearTimeout(existing);
+		applyLocalColumnWidth(columnId, width)
+		if (!connected) return
+		const existing = columnWidthSaveTimers[columnId]
+		if (existing) clearTimeout(existing)
 		columnWidthSaveTimers[columnId] = setTimeout(async () => {
-			columnWidthSaveTimers[columnId] = null;
+			columnWidthSaveTimers[columnId] = null
 			try {
 				await fetch(`/api/sheets/${sheetId}/columns/${columnId}`, {
 					method: 'PATCH',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ width })
-				});
+					body: JSON.stringify({ width }),
+				})
 			} catch {
 				// ignore network errors; width will be refreshed on next successful fetch
 			}
-		}, 150);
+		}, 150)
 	}
 
 	async function openShare() {
-		shareOpen = true;
+		shareOpen = true
 		try {
-			const res = await fetch(`/api/sheets/${sheetId}/share-links`);
-			if (!res.ok) throw new Error('Failed to load links');
-			const json = await res.json();
-			shareLinks = json.links ?? [];
+			const res = await fetch(`/api/sheets/${sheetId}/share-links`)
+			if (!res.ok) throw new Error('Failed to load links')
+			const json = await res.json()
+			shareLinks = json.links ?? []
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed';
+			error = e instanceof Error ? e.message : 'Failed'
 		}
 	}
 
-	const adminUrl = $derived(`${baseUrl}/sheets/${sheetId}`);
+	const adminUrl = $derived(`${baseUrl}/sheets/${sheetId}`)
 
 	function copyLink(token: string) {
-		const url = `${baseUrl}/s/${token}`;
-		navigator.clipboard.writeText(url);
-		copied = token;
-		setTimeout(() => (copied = null), 2000);
+		const url = `${baseUrl}/s/${token}`
+		navigator.clipboard.writeText(url)
+		copied = token
+		setTimeout(() => (copied = null), 2000)
 	}
 
 	function copyAdminLink() {
-		navigator.clipboard.writeText(adminUrl);
-		copied = 'admin';
-		setTimeout(() => (copied = null), 2000);
+		navigator.clipboard.writeText(adminUrl)
+		copied = 'admin'
+		setTimeout(() => (copied = null), 2000)
 	}
 
 	async function saveSheetName() {
-		if (!connected || !sheetId) return;
-		const value = sheetName.trim();
-		savingName = true;
+		if (!connected || !sheetId) return
+		const value = sheetName.trim()
+		savingName = true
 		try {
 			const res = await fetch(`/api/sheets/${sheetId}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: value || '' })
-			});
-			if (!res.ok) throw new Error('Failed to save name');
-			addOrUpdateSheet(sheetId, value || null);
+				body: JSON.stringify({ name: value || '' }),
+			})
+			if (!res.ok) throw new Error('Failed to save name')
+			addOrUpdateSheet(sheetId, value || null)
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to save name';
+			error = e instanceof Error ? e.message : 'Failed to save name'
 		} finally {
-			savingName = false;
+			savingName = false
 		}
 	}
 </script>
@@ -581,7 +591,8 @@
 							type="text"
 							bind:value={sheetName}
 							onblur={saveSheetName}
-							onkeydown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+							onkeydown={(e) =>
+								e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
 							disabled={!connected || savingName}
 							placeholder="Untitled sheet"
 							class="w-full rounded border-0 bg-transparent py-1 text-lg font-medium text-zinc-800 placeholder:text-zinc-400 focus:ring-2 focus:ring-zinc-300 focus:outline-none disabled:opacity-70"
@@ -674,7 +685,8 @@
 			aria-modal="true"
 			tabindex="-1"
 			onclick={(e) =>
-				e.target === e.currentTarget && ((addColumnOpen = false), (confirmRemoveColumn = false))}
+				e.target === e.currentTarget &&
+				((addColumnOpen = false), (confirmRemoveColumn = false))}
 			onkeydown={(e) =>
 				e.key === 'Escape' &&
 				(confirmRemoveColumn ? (confirmRemoveColumn = false) : (addColumnOpen = false))}
@@ -683,8 +695,8 @@
 				{#if confirmRemoveColumn}
 					<h3 class="text-lg font-medium text-zinc-900">Remove column?</h3>
 					<p class="mt-2 text-sm text-zinc-600">
-						Remove column &quot;{newColName}&quot;? All data in this column will be permanently
-						deleted. This cannot be undone.
+						Remove column &quot;{newColName}&quot;? All data in this column will be
+						permanently deleted. This cannot be undone.
 					</p>
 					<div class="mt-6 flex justify-end gap-2">
 						<button
@@ -708,13 +720,15 @@
 					</h3>
 					<form
 						onsubmit={(e) => {
-							e.preventDefault();
-							saveColumn();
+							e.preventDefault()
+							saveColumn()
 						}}
 						class="mt-4 space-y-4"
 					>
 						<div>
-							<label for="col-name" class="block text-sm font-medium text-zinc-700">Name</label>
+							<label for="col-name" class="block text-sm font-medium text-zinc-700"
+								>Name</label
+							>
 							<input
 								id="col-name"
 								type="text"
@@ -723,7 +737,9 @@
 							/>
 						</div>
 						<div>
-							<label for="col-type" class="block text-sm font-medium text-zinc-700">Type</label>
+							<label for="col-type" class="block text-sm font-medium text-zinc-700"
+								>Type</label
+							>
 							<select
 								id="col-type"
 								bind:value={newColType}
@@ -739,7 +755,9 @@
 						</div>
 						{#if newColType === 'currency'}
 							<div>
-								<label for="col-currency-symbol" class="block text-sm font-medium text-zinc-700"
+								<label
+									for="col-currency-symbol"
+									class="block text-sm font-medium text-zinc-700"
 									>Currency symbol</label
 								>
 								<input
@@ -753,7 +771,9 @@
 						{/if}
 						{#if newColType === 'number' || newColType === 'currency'}
 							<div>
-								<label for="col-decimal-places" class="block text-sm font-medium text-zinc-700"
+								<label
+									for="col-decimal-places"
+									class="block text-sm font-medium text-zinc-700"
 									>Decimal places</label
 								>
 								<input
@@ -851,7 +871,9 @@
 									permission={link.permission as 'read' | 'append' | 'edit'}
 									class="text-zinc-700"
 								/>
-								<span class="text-sm font-medium text-zinc-700 capitalize">{link.permission}</span>
+								<span class="text-sm font-medium text-zinc-700 capitalize"
+									>{link.permission}</span
+								>
 							</span>
 							<div class="flex items-center gap-2">
 								<a

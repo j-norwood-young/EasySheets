@@ -6,9 +6,9 @@
 
 export interface SheetStreamCallbacks {
 	/** Called when connection opens or closes. */
-	onConnectedChange: (connected: boolean) => void;
+	onConnectedChange: (connected: boolean) => void
 	/** Called when a message is received (e.g. sheet update). */
-	onMessage?: () => void;
+	onMessage?: () => void
 }
 
 /**
@@ -24,47 +24,47 @@ export function createSheetStreamConnection(
 	callbacks: SheetStreamCallbacks
 ): () => void {
 	function openConnection(): EventSource {
-		const es = new EventSource(streamUrl);
-		es.onopen = () => callbacks.onConnectedChange(true);
+		const es = new EventSource(streamUrl)
+		es.onopen = () => callbacks.onConnectedChange(true)
 		es.onerror = () => {
 			// EventSource sets readyState to CONNECTING and will retry
-			callbacks.onConnectedChange(false);
-		};
-		es.onmessage = () => callbacks.onMessage?.();
-		return es;
+			callbacks.onConnectedChange(false)
+		}
+		es.onmessage = () => callbacks.onMessage?.()
+		return es
 	}
 
-	let es = openConnection();
+	let es = openConnection()
 
 	// Reflect browser offline state immediately (don't wait for EventSource to fail)
 	if (typeof window !== 'undefined') {
 		if (!navigator.onLine) {
-			callbacks.onConnectedChange(false);
+			callbacks.onConnectedChange(false)
 		}
-		window.addEventListener('offline', handleOffline);
-		window.addEventListener('online', handleOnline);
+		window.addEventListener('offline', handleOffline)
+		window.addEventListener('online', handleOnline)
 	}
 
 	function handleOffline(): void {
-		callbacks.onConnectedChange(false);
+		callbacks.onConnectedChange(false)
 	}
 
 	function handleOnline(): void {
-		if (typeof window === 'undefined') return;
+		if (typeof window === 'undefined') return
 		// Show online immediately when the browser says we're back (don't wait for SSE)
-		callbacks.onConnectedChange(true);
+		callbacks.onConnectedChange(true)
 		// Reopen EventSource so we don't wait on backoff; onerror will set false if server is unreachable
 		if (es.readyState !== EventSource.OPEN) {
-			es.close();
-			es = openConnection();
+			es.close()
+			es = openConnection()
 		}
 	}
 
 	return () => {
 		if (typeof window !== 'undefined') {
-			window.removeEventListener('offline', handleOffline);
-			window.removeEventListener('online', handleOnline);
+			window.removeEventListener('offline', handleOffline)
+			window.removeEventListener('online', handleOnline)
 		}
-		es.close();
-	};
+		es.close()
+	}
 }
