@@ -18,6 +18,13 @@
 		"db:migrate": "node scripts/migrate.js",
 		"db:push": "drizzle-kit push"
 	},
+	"prepare": "svelte-kit sync || echo '' && simple-git-hooks",
+	"simple-git-hooks": {
+		"pre-commit": "pnpm lint-staged"
+	},
+	"lint-staged": {
+		"**/*.{js,ts,svelte,css,md,json}": "prettier --write"
+	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
 		"@eslint/js": "^9.39.2",
@@ -37,9 +44,11 @@
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
 		"globals": "^17.3.0",
+		"lint-staged": "^16.4.0",
 		"prettier": "^3.8.1",
 		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
+		"simple-git-hooks": "^2.13.1",
 		"svelte": "^5.51.0",
 		"svelte-check": "^4.3.6",
 		"tailwindcss": "^4.1.18",
