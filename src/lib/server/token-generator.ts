@@ -50,7 +50,7 @@ export function verifyShareTokens(
 	}
 
 	let appendedRows: AppendedRows | undefined
-	if (permission === 'append' && parts.length > 3) {
+	if (permission === 'append' && parts.length > 2) {
 		try {
 			appendedRows = JSON.parse(parts[2])
 		} catch {
