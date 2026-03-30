@@ -1,20 +1,20 @@
 <script lang="ts" generics="T extends { id: string }">
-	import LinkifiedText from '$lib/components/LinkifiedText.svelte';
-	import { formatCellDisplay } from '$lib/formatCell';
-	import type { ColumnFormat } from '$lib/formatCell';
+	import LinkifiedText from '$lib/components/LinkifiedText.svelte'
+	import { formatCellDisplay } from '$lib/formatCell'
+	import type { ColumnFormat } from '$lib/formatCell'
 
 	interface Column {
-		id: string;
-		name: string;
-		type: string;
-		format?: ColumnFormat | null;
+		id: string
+		name: string
+		type: string
+		format?: ColumnFormat | null
 		/** Optional fixed width in pixels, shared across views. */
-		width?: number | null;
+		width?: number | null
 	}
 	interface Cell {
-		rowId: string;
-		columnId: string;
-		value: string;
+		rowId: string
+		columnId: string
+		value: string
 	}
 
 	let {
@@ -23,7 +23,9 @@
 		cells = [],
 		sortColumnId = '',
 		sortDirection = 'asc' as 'asc' | 'desc',
-		onSortChange = undefined as ((columnId: string, direction: 'asc' | 'desc') => void) | undefined,
+		onSortChange = undefined as
+			| ((columnId: string, direction: 'asc' | 'desc') => void)
+			| undefined,
 		editable = false,
 		editableRowIds = undefined as Set<string> | undefined,
 		editingRowIds = undefined as Set<string> | undefined,
@@ -41,221 +43,221 @@
 		onSelectedRowIdsChange = undefined as ((ids: Set<string>) => void) | undefined,
 		onColumnResize = undefined as ((columnId: string, width: number) => void) | undefined,
 		onHeaderFilterClick = undefined as ((columnId: string) => void) | undefined,
-		permission = 'edit'
+		permission = 'edit',
 	}: {
-		columns: Column[];
-		rows: T[];
-		cells: Cell[];
-		sortColumnId?: string;
-		sortDirection?: 'asc' | 'desc';
+		columns: Column[]
+		rows: T[]
+		cells: Cell[]
+		sortColumnId?: string
+		sortDirection?: 'asc' | 'desc'
 		/** When set, column headers are clickable to sort; first click asc, second desc, third clears. */
-		onSortChange?: (columnId: string, direction: 'asc' | 'desc') => void;
-		editable?: boolean;
+		onSortChange?: (columnId: string, direction: 'asc' | 'desc') => void
+		editable?: boolean
 		/** When set, only rows whose id is in this set can be toggled to edit (append mode). */
-		editableRowIds?: Set<string>;
+		editableRowIds?: Set<string>
 		/** When editableRowIds is set, which of those rows are currently in edit mode. */
-		editingRowIds?: Set<string>;
-		onCellChange?: (rowId: string, columnId: string, value: string) => void;
-		onDeleteRow?: (rowId: string) => void;
-		onStartEdit?: (rowId: string) => void;
-		onConfirmEdit?: (rowId: string) => void;
-		onColumnEdit?: (col: Column) => void;
+		editingRowIds?: Set<string>
+		onCellChange?: (rowId: string, columnId: string, value: string) => void
+		onDeleteRow?: (rowId: string) => void
+		onStartEdit?: (rowId: string) => void
+		onConfirmEdit?: (rowId: string) => void
+		onColumnEdit?: (col: Column) => void
 		/** Fires when any cell input inside the table gains focus. */
-		onEditingStart?: () => void;
+		onEditingStart?: () => void
 		/** Fires when focus leaves the table entirely (debounced so tab between cells doesn't trigger it). */
-		onEditingEnd?: () => void;
+		onEditingEnd?: () => void
 		/** When set, a drag handle column is shown and rows can be reordered. */
-		onRowReorder?: (fromIndex: number, toIndex: number) => void;
+		onRowReorder?: (fromIndex: number, toIndex: number) => void
 		/** When set, a plus icon is shown in the row-actions header to add a column (admin view). */
-		onAddColumn?: () => void;
+		onAddColumn?: () => void
 		/** When set, column headers have a drag handle and columns can be reordered. */
-		onColumnReorder?: (fromIndex: number, toIndex: number) => void;
+		onColumnReorder?: (fromIndex: number, toIndex: number) => void
 		/** When set with onSelectedRowIdsChange, a checkbox column is shown for multi-select (e.g. bulk delete). */
-		selectedRowIds?: Set<string>;
-		onSelectedRowIdsChange?: (ids: Set<string>) => void;
+		selectedRowIds?: Set<string>
+		onSelectedRowIdsChange?: (ids: Set<string>) => void
 		/** Callback when user clicks the header filter icon for a column (shared view). */
-		onHeaderFilterClick?: (columnId: string) => void;
+		onHeaderFilterClick?: (columnId: string) => void
 		/** When 'edit', admin-level controls are shown (including column resize). */
-		permission?: string;
+		permission?: string
 		/** When set, admin can drag a resize handle on column headers to set fixed widths. */
-		onColumnResize?: (columnId: string, width: number) => void;
-	} = $props();
+		onColumnResize?: (columnId: string, width: number) => void
+	} = $props()
 
-	let blurTimer: ReturnType<typeof setTimeout> | null = null;
+	let blurTimer: ReturnType<typeof setTimeout> | null = null
 	function handleTableFocusIn() {
 		if (blurTimer) {
-			clearTimeout(blurTimer);
-			blurTimer = null;
+			clearTimeout(blurTimer)
+			blurTimer = null
 		}
-		onEditingStart?.();
+		onEditingStart?.()
 	}
 	function handleTableFocusOut() {
-		if (blurTimer) clearTimeout(blurTimer);
+		if (blurTimer) clearTimeout(blurTimer)
 		blurTimer = setTimeout(() => {
-			blurTimer = null;
-			onEditingEnd?.();
-		}, 150);
+			blurTimer = null
+			onEditingEnd?.()
+		}, 150)
 	}
 
-	const cellMap = $derived(new Map(cells.map((c) => [`${c.rowId}:${c.columnId}`, c.value])));
+	const cellMap = $derived(new Map(cells.map((c) => [`${c.rowId}:${c.columnId}`, c.value])))
 	function getCell(rowId: string, columnId: string): string {
-		return cellMap.get(`${rowId}:${columnId}`) ?? '';
+		return cellMap.get(`${rowId}:${columnId}`) ?? ''
 	}
-	const canDelete = $derived(permission === 'edit' && !!onDeleteRow);
+	const canDelete = $derived(permission === 'edit' && !!onDeleteRow)
 	const showSelectionColumn = $derived(
 		canDelete && selectedRowIds != null && onSelectedRowIdsChange != null
-	);
-	const allRowIds = $derived(rows.map((r) => r.id));
+	)
+	const allRowIds = $derived(rows.map((r) => r.id))
 	const selectAllChecked = $derived(
 		showSelectionColumn &&
 			selectedRowIds != null &&
 			allRowIds.length > 0 &&
 			allRowIds.every((id) => selectedRowIds!.has(id))
-	);
+	)
 	const selectAllIndeterminate = $derived(
 		showSelectionColumn &&
 			selectedRowIds != null &&
 			selectedRowIds.size > 0 &&
 			selectedRowIds.size < allRowIds.length
-	);
+	)
 	/** Show tick/x (edit mode) or pencil (view mode) for append-editable rows. */
 	const showAppendActions = $derived(
 		editableRowIds != null && (onStartEdit != null || onConfirmEdit != null)
-	);
+	)
 
 	/** Input type and step for non-boolean columns; 'checkbox' for boolean. */
 	function getInputSpec(colType: string): { type: string; step?: string } {
 		switch (colType) {
 			case 'number':
-				return { type: 'number' };
+				return { type: 'number' }
 			case 'currency':
-				return { type: 'number', step: '0.01' };
+				return { type: 'number', step: '0.01' }
 			case 'date':
-				return { type: 'date' };
+				return { type: 'date' }
 			case 'datetime':
-				return { type: 'datetime-local' };
+				return { type: 'datetime-local' }
 			case 'boolean':
-				return { type: 'checkbox' };
+				return { type: 'checkbox' }
 			default:
-				return { type: 'text' };
+				return { type: 'text' }
 		}
 	}
 
 	/** Value for date/datetime inputs: normalize to the format the input expects. */
 	function getInputValue(col: Column, rowId: string): string {
-		const raw = getCell(rowId, col.id);
+		const raw = getCell(rowId, col.id)
 		if (col.type === 'datetime' && raw) {
 			// datetime-local expects YYYY-MM-DDTHH:mm; strip seconds and timezone if present
-			const trimmed = raw.trim().slice(0, 16);
-			return trimmed.length >= 16 ? trimmed : raw;
+			const trimmed = raw.trim().slice(0, 16)
+			return trimmed.length >= 16 ? trimmed : raw
 		}
-		return raw;
+		return raw
 	}
 
 	function isBooleanTrue(value: string): boolean {
-		const v = value.toLowerCase().trim();
-		return v === 'true' || v === '1' || v === 'yes';
+		const v = value.toLowerCase().trim()
+		return v === 'true' || v === '1' || v === 'yes'
 	}
 
 	/** True if this row's cells should show as editable (inputs). */
 	function isRowEditable(rowId: string): boolean {
-		if (editableRowIds != null) return (editingRowIds ?? new Set()).has(rowId);
-		return editable;
+		if (editableRowIds != null) return (editingRowIds ?? new Set()).has(rowId)
+		return editable
 	}
 
 	/** True if this row shows append actions (pencil or tick/x). */
 	function isAppendEditableRow(rowId: string): boolean {
-		return editableRowIds != null && editableRowIds.has(rowId);
+		return editableRowIds != null && editableRowIds.has(rowId)
 	}
 
 	function isRowInEditMode(rowId: string): boolean {
-		return (editingRowIds ?? new Set()).has(rowId);
+		return (editingRowIds ?? new Set()).has(rowId)
 	}
 
-	let dragIndex = $state<number | null>(null);
+	let dragIndex = $state<number | null>(null)
 	function handleDragStart(e: DragEvent, index: number) {
-		dragIndex = index;
-		e.dataTransfer?.setData('text/plain', String(index));
-		e.dataTransfer!.effectAllowed = 'move';
-		if (e.target instanceof HTMLElement) e.target.classList.add('opacity-50');
+		dragIndex = index
+		e.dataTransfer?.setData('text/plain', String(index))
+		e.dataTransfer!.effectAllowed = 'move'
+		if (e.target instanceof HTMLElement) e.target.classList.add('opacity-50')
 	}
 	function handleDragEnd(e: DragEvent) {
-		if (e.target instanceof HTMLElement) e.target.classList.remove('opacity-50');
-		dragIndex = null;
+		if (e.target instanceof HTMLElement) e.target.classList.remove('opacity-50')
+		dragIndex = null
 	}
 	function handleDragOver(e: DragEvent, index: number) {
-		e.preventDefault();
-		e.dataTransfer!.dropEffect = 'move';
+		e.preventDefault()
+		e.dataTransfer!.dropEffect = 'move'
 	}
 	function handleDrop(e: DragEvent, toIndex: number) {
-		e.preventDefault();
-		if (dragIndex == null || dragIndex === toIndex) return;
-		onRowReorder?.(dragIndex, toIndex);
-		dragIndex = null;
+		e.preventDefault()
+		if (dragIndex == null || dragIndex === toIndex) return
+		onRowReorder?.(dragIndex, toIndex)
+		dragIndex = null
 	}
 
-	const MIN_COL_WIDTH = 80;
-	const MAX_COL_WIDTH = 600;
+	const MIN_COL_WIDTH = 80
+	const MAX_COL_WIDTH = 600
 
-	const headerCells = new Map<string, HTMLTableCellElement>();
+	const headerCells = new Map<string, HTMLTableCellElement>()
 	function registerHeader(node: HTMLTableCellElement, columnId: string) {
-		headerCells.set(columnId, node);
+		headerCells.set(columnId, node)
 		return {
 			destroy() {
-				headerCells.delete(columnId);
-			}
-		};
+				headerCells.delete(columnId)
+			},
+		}
 	}
 
-	let resizingColumnId = $state<string | null>(null);
-	let resizeStartX = 0;
-	let resizeStartWidth = 0;
+	let resizingColumnId = $state<string | null>(null)
+	let resizeStartX = 0
+	let resizeStartWidth = 0
 
 	function handleResizeMouseDown(event: MouseEvent, columnId: string) {
-		if (!onColumnResize) return;
-		event.stopPropagation();
-		event.preventDefault();
-		const header = headerCells.get(columnId);
-		if (!header) return;
-		const rect = header.getBoundingClientRect();
-		resizingColumnId = columnId;
-		resizeStartX = event.clientX;
-		resizeStartWidth = rect.width;
-		window.addEventListener('mousemove', handleResizeMouseMove);
-		window.addEventListener('mouseup', handleResizeMouseUp);
+		if (!onColumnResize) return
+		event.stopPropagation()
+		event.preventDefault()
+		const header = headerCells.get(columnId)
+		if (!header) return
+		const rect = header.getBoundingClientRect()
+		resizingColumnId = columnId
+		resizeStartX = event.clientX
+		resizeStartWidth = rect.width
+		window.addEventListener('mousemove', handleResizeMouseMove)
+		window.addEventListener('mouseup', handleResizeMouseUp)
 	}
 
 	function handleResizeMouseMove(event: MouseEvent) {
-		if (!resizingColumnId || !onColumnResize) return;
-		const delta = event.clientX - resizeStartX;
-		let nextWidth = Math.round(resizeStartWidth + delta);
-		if (!Number.isFinite(nextWidth)) return;
-		if (nextWidth < MIN_COL_WIDTH) nextWidth = MIN_COL_WIDTH;
-		if (nextWidth > MAX_COL_WIDTH) nextWidth = MAX_COL_WIDTH;
-		onColumnResize(resizingColumnId, nextWidth);
+		if (!resizingColumnId || !onColumnResize) return
+		const delta = event.clientX - resizeStartX
+		let nextWidth = Math.round(resizeStartWidth + delta)
+		if (!Number.isFinite(nextWidth)) return
+		if (nextWidth < MIN_COL_WIDTH) nextWidth = MIN_COL_WIDTH
+		if (nextWidth > MAX_COL_WIDTH) nextWidth = MAX_COL_WIDTH
+		onColumnResize(resizingColumnId, nextWidth)
 	}
 
 	function handleResizeMouseUp() {
-		if (!resizingColumnId) return;
-		resizingColumnId = null;
-		window.removeEventListener('mousemove', handleResizeMouseMove);
-		window.removeEventListener('mouseup', handleResizeMouseUp);
+		if (!resizingColumnId) return
+		resizingColumnId = null
+		window.removeEventListener('mousemove', handleResizeMouseMove)
+		window.removeEventListener('mouseup', handleResizeMouseUp)
 	}
 
-	let columnDragIndex = $state<number | null>(null);
-	let columnDragImageEl: HTMLElement | null = null;
+	let columnDragIndex = $state<number | null>(null)
+	let columnDragImageEl: HTMLElement | null = null
 	function handleColumnDragStart(e: DragEvent, index: number, columnName: string) {
-		columnDragIndex = index;
-		e.dataTransfer?.setData('text/plain', 'col-' + index);
-		e.dataTransfer!.effectAllowed = 'move';
-		if (e.currentTarget instanceof HTMLElement) e.currentTarget.classList.add('opacity-50');
+		columnDragIndex = index
+		e.dataTransfer?.setData('text/plain', 'col-' + index)
+		e.dataTransfer!.effectAllowed = 'move'
+		if (e.currentTarget instanceof HTMLElement) e.currentTarget.classList.add('opacity-50')
 
 		// Custom drag image so it's clear what's being dragged
-		const dt = e.dataTransfer;
+		const dt = e.dataTransfer
 		if (dt) {
-			const ghost = document.createElement('div');
-			ghost.textContent = columnName;
-			ghost.setAttribute('aria-hidden', 'true');
+			const ghost = document.createElement('div')
+			ghost.textContent = columnName
+			ghost.setAttribute('aria-hidden', 'true')
 			Object.assign(ghost.style, {
 				position: 'absolute',
 				top: '-9999px',
@@ -269,46 +271,47 @@
 				fontWeight: '500',
 				color: 'rgb(39 39 42)',
 				whiteSpace: 'nowrap',
-				pointerEvents: 'none'
-			});
-			document.body.appendChild(ghost);
-			columnDragImageEl = ghost;
-			dt.setDragImage(ghost, Math.min(ghost.offsetWidth / 2, 80), ghost.offsetHeight / 2);
+				pointerEvents: 'none',
+			})
+			document.body.appendChild(ghost)
+			columnDragImageEl = ghost
+			dt.setDragImage(ghost, Math.min(ghost.offsetWidth / 2, 80), ghost.offsetHeight / 2)
 		}
 	}
 	function handleColumnDragEnd(e: DragEvent) {
-		if (e.currentTarget instanceof HTMLElement) e.currentTarget.classList.remove('opacity-50');
-		if (columnDragImageEl?.parentNode) columnDragImageEl.parentNode.removeChild(columnDragImageEl);
-		columnDragImageEl = null;
-		columnDragIndex = null;
+		if (e.currentTarget instanceof HTMLElement) e.currentTarget.classList.remove('opacity-50')
+		if (columnDragImageEl?.parentNode)
+			columnDragImageEl.parentNode.removeChild(columnDragImageEl)
+		columnDragImageEl = null
+		columnDragIndex = null
 	}
 	function handleColumnDragOver(e: DragEvent, index: number) {
-		e.preventDefault();
-		e.dataTransfer!.dropEffect = 'move';
+		e.preventDefault()
+		e.dataTransfer!.dropEffect = 'move'
 	}
 	function handleColumnDrop(e: DragEvent, toIndex: number) {
-		e.preventDefault();
-		if (columnDragIndex == null || columnDragIndex === toIndex) return;
-		onColumnReorder?.(columnDragIndex, toIndex);
-		columnDragIndex = null;
+		e.preventDefault()
+		if (columnDragIndex == null || columnDragIndex === toIndex) return
+		onColumnReorder?.(columnDragIndex, toIndex)
+		columnDragIndex = null
 	}
 
 	function setIndeterminate(node: HTMLInputElement, value: boolean) {
-		node.indeterminate = value;
+		node.indeterminate = value
 		return {
 			update(value: boolean) {
-				node.indeterminate = value;
-			}
-		};
+				node.indeterminate = value
+			},
+		}
 	}
 	function handleSortClick(colId: string) {
-		if (!onSortChange) return;
+		if (!onSortChange) return
 		if (sortColumnId !== colId) {
-			onSortChange(colId, 'asc');
+			onSortChange(colId, 'asc')
 		} else if (sortDirection === 'asc') {
-			onSortChange(colId, 'desc');
+			onSortChange(colId, 'desc')
 		} else {
-			onSortChange('', 'asc');
+			onSortChange('', 'asc')
 		}
 	}
 </script>
@@ -353,9 +356,9 @@
 								class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
 								onchange={() => {
 									if (selectAllChecked) {
-										onSelectedRowIdsChange?.(new Set());
+										onSelectedRowIdsChange?.(new Set())
 									} else {
-										onSelectedRowIdsChange?.(new Set(allRowIds));
+										onSelectedRowIdsChange?.(new Set(allRowIds))
 									}
 								}}
 							/>
@@ -382,7 +385,9 @@
 						ondragover={onColumnReorder
 							? (e: DragEvent) => handleColumnDragOver(e, colIndex)
 							: undefined}
-						ondrop={onColumnReorder ? (e: DragEvent) => handleColumnDrop(e, colIndex) : undefined}
+						ondrop={onColumnReorder
+							? (e: DragEvent) => handleColumnDrop(e, colIndex)
+							: undefined}
 					>
 						<span class="flex items-center gap-1.5">
 							{#if onColumnReorder}
@@ -394,12 +399,12 @@
 									draggable="true"
 									onclick={(e) => e.stopPropagation()}
 									onkeydown={(e) => {
-										e.stopPropagation();
-										if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+										e.stopPropagation()
+										if (e.key === 'Enter' || e.key === ' ') e.preventDefault()
 									}}
 									ondragstart={(e: DragEvent) => {
-										e.stopPropagation();
-										handleColumnDragStart(e, colIndex, col.name);
+										e.stopPropagation()
+										handleColumnDragStart(e, colIndex, col.name)
 									}}
 									ondragend={handleColumnDragEnd}
 								>
@@ -422,8 +427,8 @@
 									class="flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-zinc-200"
 									aria-label={`Filter by ${col.name}`}
 									onclick={(event) => {
-										event.stopPropagation();
-										onHeaderFilterClick?.(col.id);
+										event.stopPropagation()
+										onHeaderFilterClick?.(col.id)
 									}}
 								>
 									<svg
@@ -446,21 +451,25 @@
 								{#if sortColumnId === col.id}
 									<span
 										class="text-zinc-500"
-										aria-label={sortDirection === 'asc' ? 'Sorted ascending' : 'Sorted descending'}
+										aria-label={sortDirection === 'asc'
+											? 'Sorted ascending'
+											: 'Sorted descending'}
 									>
 										{#if sortDirection === 'asc'}
 											<svg
 												class="h-4 w-4"
 												fill="currentColor"
 												viewBox="0 0 24 24"
-												aria-hidden="true"><path d="M7 10l5 5 5-5H7z" /></svg
+												aria-hidden="true"
+												><path d="M7 10l5 5 5-5H7z" /></svg
 											>
 										{:else}
 											<svg
 												class="h-4 w-4"
 												fill="currentColor"
 												viewBox="0 0 24 24"
-												aria-hidden="true"><path d="M7 14l5-5 5 5H7z" /></svg
+												aria-hidden="true"
+												><path d="M7 14l5-5 5 5H7z" /></svg
 											>
 										{/if}
 									</span>
@@ -477,12 +486,17 @@
 									type="button"
 									aria-label="Edit column"
 									onclick={(e) => {
-										e.stopPropagation();
-										onColumnEdit(col);
+										e.stopPropagation()
+										onColumnEdit(col)
 									}}
 									class="rounded p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
 								>
-									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg
+										class="h-3.5 w-3.5"
+										fill="none"
+										stroke="currentColor"
+										viewBox="0 0 24 24"
+									>
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -513,7 +527,12 @@
 								onclick={onAddColumn}
 								class="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
 							>
-								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg
+									class="h-4 w-4"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -550,10 +569,10 @@
 									aria-label="Select row"
 									class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
 									onchange={() => {
-										const next = new Set(selectedRowIds);
-										if (next.has(row.id)) next.delete(row.id);
-										else next.add(row.id);
-										onSelectedRowIdsChange?.(next);
+										const next = new Set(selectedRowIds)
+										if (next.has(row.id)) next.delete(row.id)
+										else next.add(row.id)
+										onSelectedRowIdsChange?.(next)
 									}}
 								/>
 							</label>
@@ -563,7 +582,12 @@
 						<td
 							class="w-10 cursor-grab border-y-0 border-r-1 border-l-0 border-zinc-200 px-2 py-0 text-zinc-400 focus:border-zinc-400 active:cursor-grabbing"
 						>
-							<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+							<svg
+								class="h-4 w-4"
+								fill="currentColor"
+								viewBox="0 0 24 24"
+								aria-hidden="true"
+							>
 								<path
 									d="M8 6h2v2H8V6zm0 5h2v2H8v-2zm0 5h2v2H8v-2zm5-10h2v2h-2V6zm0 5h2v2h-2v-2zm0 5h2v2h-2v-2z"
 								/>
@@ -582,7 +606,9 @@
 												onCellChange(
 													row.id,
 													col.id,
-													(e.target as HTMLInputElement).checked ? 'true' : 'false'
+													(e.target as HTMLInputElement).checked
+														? 'true'
+														: 'false'
 												)}
 											class="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
 										/>
@@ -594,7 +620,11 @@
 										step={spec.step}
 										value={getInputValue(col, row.id)}
 										oninput={(e) =>
-											onCellChange(row.id, col.id, (e.target as HTMLInputElement).value)}
+											onCellChange(
+												row.id,
+												col.id,
+												(e.target as HTMLInputElement).value
+											)}
 										class="w-full border-y-0 border-r-1 border-l-0 border-zinc-200 bg-white px-2 py-2.5 text-zinc-900 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 focus:outline-none"
 									/>
 								{/if}
@@ -626,7 +656,12 @@
 								onclick={() => onDeleteRow?.(row.id)}
 								class="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
 							>
-								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg
+									class="h-4 w-4"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -646,7 +681,12 @@
 										onclick={() => onConfirmEdit?.(row.id)}
 										class="rounded p-1 text-zinc-400 hover:bg-green-50 hover:text-green-600"
 									>
-										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											class="h-4 w-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -661,7 +701,12 @@
 										onclick={() => onDeleteRow?.(row.id)}
 										class="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
 									>
-										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											class="h-4 w-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
@@ -677,7 +722,12 @@
 										onclick={() => onStartEdit?.(row.id)}
 										class="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
 									>
-										<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<svg
+											class="h-4 w-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
 											<path
 												stroke-linecap="round"
 												stroke-linejoin="round"
